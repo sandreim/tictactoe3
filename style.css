@@ -95,6 +95,12 @@ h1 {
     gap: 8px;
 }
 
+/* Full-width cards for game and timing chart */
+.game-card,
+.timing-chart-card {
+    grid-column: 1 / -1;
+}
+
 /* Form elements */
 .form-group {
     margin-bottom: 16px;
@@ -432,10 +438,8 @@ input[type="number"]:focus {
     color: #92400e;
 }
 
-/* Transaction cards */
-.transaction-card,
-.transaction-history-card,
-.timing-chart-card {
+/* Transaction history card */
+.transaction-history-card {
     grid-column: span 1;
 }
 
@@ -443,6 +447,330 @@ input[type="number"]:focus {
     .transaction-history-card,
     .timing-chart-card {
         grid-column: span 2;
+    }
+}
+
+/* Tic Tac Toe Game */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.game-mode-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f7fafc;
+    border-radius: 8px;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.mode-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-label:hover {
+    border-color: #667eea;
+    background: #f7fafc;
+}
+
+.mode-label input[type="radio"] {
+    margin-right: 8px;
+}
+
+.mode-label input[type="radio"]:checked + span {
+    font-weight: 700;
+    color: #667eea;
+}
+
+.onchain-setup {
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.game-id-display {
+    margin-top: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+    border-radius: 6px;
+    font-weight: 600;
+    color: #166534;
+}
+
+.game-id-value {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 1.1rem;
+}
+
+.games-dropdown {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.games-dropdown:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.games-dropdown option {
+    padding: 10px;
+}
+
+.btn-reset {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-reset:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Game Layout - Side by Side */
+.game-layout {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.game-board-section {
+    flex-shrink: 0;
+}
+
+.game-info-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+.game-info {
+    margin-bottom: 24px;
+}
+
+.player-turn {
+    text-align: center;
+    margin-top: 32px;
+    margin-bottom: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+}
+
+.player-indicator {
+    font-size: 1.5rem;
+    font-weight: 700;
+    padding: 20px 40px;
+    border-radius: 16px;
+    display: inline-block;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    min-width: 280px;
+}
+
+.player-indicator.player-x {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.player-indicator.player-o {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+/* Scores at Bottom */
+.game-stats-bottom {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    border-radius: 12px;
+    margin-top: 24px;
+    border: 2px solid #e2e8f0;
+}
+
+.game-stats-bottom .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.game-stats-bottom .stat-label {
+    font-size: 0.9rem;
+    color: #718096;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.game-stats-bottom .stat-number {
+    font-size: 2rem;
+    color: #2d3748;
+    font-weight: 700;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.game-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px;
+    background: #f7fafc;
+    border-radius: 8px;
+}
+
+.game-stats .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.game-stats .stat-label {
+    font-size: 0.85rem;
+    color: #718096;
+    font-weight: 500;
+}
+
+.game-stats .stat-number {
+    font-size: 1.4rem;
+    color: #2d3748;
+    font-weight: 700;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 400px;
+    height: 400px;
+}
+
+.cell {
+    background: linear-gradient(145deg, #ffffff, #f0f0f0);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cell:hover:not(.taken) {
+    background: linear-gradient(145deg, #f7fafc, #edf2f7);
+    border-color: #cbd5e0;
+    transform: scale(1.03);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.cell.taken {
+    cursor: not-allowed;
+}
+
+.cell.x {
+    color: #667eea;
+    animation: popIn 0.3s ease;
+}
+
+.cell.o {
+    color: #f5576c;
+    animation: popIn 0.3s ease;
+}
+
+.cell.winning {
+    background: linear-gradient(145deg, #c3f0c8, #a0e7b0);
+    border-color: #10b981;
+    animation: winPulse 0.6s ease-in-out infinite;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes winPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.game-message {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    animation: slideIn 0.3s ease;
+}
+
+.game-message.winner {
+    background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+    color: #166534;
+}
+
+.game-message.draw {
+    background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+    color: #92400e;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

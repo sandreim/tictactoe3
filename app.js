@@ -20,6 +20,20 @@ class PolkadotApp {
         this.transactionHistory = []; // Store transaction history
         this.pendingTransactions = new Map(); // Track in-flight transactions by hash
         this.timingChart = null; // Chart.js instance
+        
+        // Tic Tac Toe game state
+        this.gameBoard = Array(9).fill(null);
+        this.currentPlayerSymbol = 'X';
+        this.gameActive = true;
+        this.currentGameId = null; // On-chain game ID
+        this.gameStats = {
+            xWins: 0,
+            oWins: 0,
+            draws: 0
+        };
+        this.opponentAddress = null;
+        this.eventsSubscribed = false; // Track if we've subscribed to game events
+        
         this.init();
     }
 
@@ -39,19 +53,19 @@ class PolkadotApp {
             this.connectWallet();
         });
 
-        // Transaction button
-        document.getElementById('sendTransactionBtn').addEventListener('click', () => {
-            this.sendTransaction();
-        });
+        // // Transaction button
+        // document.getElementById('sendTransactionBtn').addEventListener('click', () => {
+        //     this.sendTransaction();
+        // });
 
         // Auto-validate recipient address
-        document.getElementById('recipientAddress').addEventListener('input', () => {
-            this.validateTransactionForm();
-        });
+        // document.getElementById('recipientAddress').addEventListener('input', () => {
+        //     this.validateTransactionForm();
+        // });
 
-        document.getElementById('transferAmount').addEventListener('input', () => {
-            this.validateTransactionForm();
-        });
+        // document.getElementById('transferAmount').addEventListener('input', () => {
+        //     this.validateTransactionForm();
+        // });
 
         // Update mode toggle
         document.getElementById('updateModeToggle').addEventListener('change', (e) => {
@@ -65,6 +79,7 @@ class PolkadotApp {
 
         // Seed phrase buttons
         document.getElementById('useSeedBtn').addEventListener('click', () => {
+            console.log('Use Seed button clicked');
             this.showSeedInput();
         });
 
@@ -75,6 +90,41 @@ class PolkadotApp {
         document.getElementById('cancelSeedBtn').addEventListener('click', () => {
             this.hideSeedInput();
         });
+
+        // Tic Tac Toe game event listeners
+        document.getElementById('resetGameBtn').addEventListener('click', () => {
+            this.resetGame();
+        });
+
+        // Add click listeners to all cells
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.addEventListener('click', (e) => {
+                const cellIndex = parseInt(e.target.getAttribute('data-cell'));
+                this.handleCellClick(cellIndex);
+            });
+        });
+
+        // On-chain game creation
+        document.getElementById('createOnChainGameBtn').addEventListener('click', () => {
+            this.createOnChainGame();
+        });
+
+        // Games dropdown change
+        document.getElementById('gamesDropdown').addEventListener('change', (e) => {
+            const joinBtn = document.getElementById('joinSelectedGameBtn');
+            joinBtn.disabled = !e.target.value;
+        });
+
+        // Join selected game button
+        document.getElementById('joinSelectedGameBtn').addEventListener('click', () => {
+            const gameId = parseInt(document.getElementById('gamesDropdown').value);
+            if (gameId >= 0) {
+                this.joinGameById(gameId);
+            }
+        });
+
+        // Load game stats from localStorage
+        this.loadGameStats();
     }
 
     async connectToChain() {
@@ -118,6 +168,9 @@ class PolkadotApp {
             
             // Start monitoring blocks
             this.subscribeToBlocks();
+            
+            // Subscribe to game events globally
+            this.subscribeToGameEvents();
 
             connectBtn.textContent = 'Connected';
             connectBtn.disabled = false;
@@ -166,8 +219,8 @@ class PolkadotApp {
             // Start periodic account updates
             this.startAccountUpdates();
             
-            // Validate transaction form
-            this.validateTransactionForm();
+            // Load user's games
+            this.loadUserGames();
 
         } catch (error) {
             console.error('Wallet connection error:', error);
@@ -178,8 +231,19 @@ class PolkadotApp {
     }
 
     showSeedInput() {
-        document.getElementById('seedInput').classList.remove('hidden');
-        document.getElementById('seedPhrase').focus();
+        console.log('showSeedInput called');
+        const seedInput = document.getElementById('seedInput');
+        console.log('seedInput element:', seedInput);
+        if (seedInput) {
+            seedInput.classList.remove('hidden');
+            console.log('Removed hidden class, classes:', seedInput.className);
+            const seedPhrase = document.getElementById('seedPhrase');
+            if (seedPhrase) {
+                seedPhrase.focus();
+            }
+        } else {
+            console.error('seedInput element not found!');
+        }
     }
 
     hideSeedInput() {
@@ -226,7 +290,7 @@ class PolkadotApp {
             };
             this.accountType = 'seed';
 
-            console.log('Account imported from seed:', this.currentAccount.address);
+            console.log('Account created from seed string:', this.currentAccount.address);
 
             // Update UI
             this.updateAccountInfo();
@@ -238,16 +302,16 @@ class PolkadotApp {
             // Start periodic account updates
             this.startAccountUpdates();
             
-            // Validate transaction form
-            this.validateTransactionForm();
+            // Load user's games
+            this.loadUserGames();
 
-            importBtn.textContent = 'Import Account';
+            importBtn.textContent = 'Create Account';
             importBtn.disabled = false;
 
         } catch (error) {
             console.error('Seed import error:', error);
             this.showError(`Failed to import seed: ${error.message}`);
-            importBtn.textContent = 'Import Account';
+            importBtn.textContent = 'Create Account';
             importBtn.disabled = false;
         }
     }
@@ -1205,13 +1269,653 @@ class PolkadotApp {
     updateUI() {
         // Initial UI state
         this.updateConnectionStatus(false);
-        this.validateTransactionForm();
         
         // Load transaction history
         this.loadTransactionHistory();
         
         // Initialize chart
         setTimeout(() => this.initChart(), 100);
+    }
+
+    // ===== TIC TAC TOE GAME METHODS =====
+
+    async createOnChainGame() {
+        if (!this.api || !this.currentAccount) {
+            alert('Please connect to chain and wallet first');
+            return;
+        }
+
+        const opponentAddress = document.getElementById('opponentAddressInput').value.trim();
+        
+        if (!opponentAddress) {
+            alert('Please enter opponent address');
+            return;
+        }
+
+        const createBtn = document.getElementById('createOnChainGameBtn');
+        
+        try {
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating Game...';
+
+            console.log('Creating on-chain game with opponent:', opponentAddress);
+
+            // Create the extrinsic
+            const tx = this.api.tx.ticTacToe.createGame(opponentAddress);
+
+            // Sign and send based on account type
+            let unsub;
+            const txCallback = async ({ status, events = [], dispatchError }) => {
+                console.log('Transaction status:', status.type);
+                console.log('Events object:', events);
+                console.log('Events length:', events ? events.length : 'undefined');
+
+                if (status.isInBlock) {
+                    console.log('Game creation included in block at', status.asInBlock.toString());
+                    console.log('Total events received:', events.length);
+                    
+                    // Check for errors
+                    if (dispatchError) {
+                        let errorInfo = '';
+                        if (dispatchError.isModule) {
+                            const decoded = this.api.registry.findMetaError(dispatchError.asModule);
+                            errorInfo = `${decoded.section}.${decoded.name}: ${decoded.docs}`;
+                        } else {
+                            errorInfo = dispatchError.toString();
+                        }
+                        console.error('Transaction failed with error:', errorInfo);
+                        alert(`Transaction failed: ${errorInfo}`);
+                        createBtn.textContent = 'Create On-Chain Game';
+                        createBtn.disabled = false;
+                        unsub();
+                        return;
+                    }
+                    
+                    // Find the GameCreated event
+                    let gameCreated = false;
+                    for (const { event } of events) {
+                        console.log('Event:', event.section, event.method, event.toHuman());
+                        
+                        // Try multiple ways to detect the event
+                        const isTicTacToeEvent = event.section === 'ticTacToe' || event.section === 'tictactoe';
+                        const isGameCreatedEvent = event.method === 'GameCreated';
+                        
+                        if (isTicTacToeEvent && isGameCreatedEvent) {
+                            console.log('Found GameCreated event!');
+                            const [gameId, playerX, playerO] = event.data;
+                            this.currentGameId = gameId.toNumber();
+                            
+                            console.log(`Game created! ID: ${this.currentGameId}, PlayerX: ${playerX}, PlayerO: ${playerO}`);
+                            
+                            // Re-enable button and reset text BEFORE setupGame hides the section
+                            createBtn.textContent = 'Create On-Chain Game';
+                            createBtn.disabled = false;
+                            
+                            gameCreated = true;
+                            
+                            // Join the game we just created (don't wait for finality)
+                            try {
+                                await this.setupGame(this.currentGameId, playerX.toString(), playerO.toString());
+                            } catch (error) {
+                                console.error('Error setting up game:', error);
+                                alert(`Error joining game: ${error.message}`);
+                            }
+                            
+                            // Unsubscribe
+                            unsub();
+                            break;
+                        }
+                        
+                        // Keep the old check as backup
+                        if (this.api.events.ticTacToe && this.api.events.ticTacToe.GameCreated && this.api.events.ticTacToe.GameCreated.is(event)) {
+                            const [gameId, playerX, playerO] = event.data;
+                            this.currentGameId = gameId.toNumber();
+                            
+                            console.log(`Game created! ID: ${this.currentGameId}, PlayerX: ${playerX}, PlayerO: ${playerO}`);
+                            
+                            // Re-enable button and reset text BEFORE setupGame hides the section
+                            createBtn.textContent = 'Create On-Chain Game';
+                            createBtn.disabled = false;
+                            
+                            gameCreated = true;
+                            
+                            // Join the game we just created (don't wait for finality)
+                            try {
+                                await this.setupGame(this.currentGameId, playerX.toString(), playerO.toString());
+                            } catch (error) {
+                                console.error('Error setting up game:', error);
+                                alert(`Error joining game: ${error.message}`);
+                            }
+                            
+                            // Unsubscribe
+                            unsub();
+                            break;
+                        }
+                    }
+                    
+                    if (!gameCreated) {
+                        console.warn('GameCreated event not found in events! Trying to query nextGameId...');
+                        
+                        // Fallback: Query the chain to get the latest game ID
+                        try {
+                            const nextGameId = await this.api.query.ticTacToe.nextGameId();
+                            const latestGameId = nextGameId.toNumber() - 1; // Last created game
+                            
+                            if (latestGameId >= 0) {
+                                console.log(`Queried latest game ID: ${latestGameId}`);
+                                
+                                // Fetch the game details
+                                const game = await this.api.query.ticTacToe.games(latestGameId);
+                                if (game.isSome) {
+                                    const gameData = game.unwrap();
+                                    const playerXAddr = gameData.playerX || gameData.player_x;
+                                    const playerOAddr = gameData.playerO || gameData.player_o;
+                                    const playerX = playerXAddr.toString();
+                                    const playerO = playerOAddr.toString();
+                                    
+                                    console.log(`Found game ${latestGameId}: X=${playerX}, O=${playerO}`);
+                                    
+                                    // Check if current account is in this game
+                                    if (playerX === this.currentAccount.address || playerO === this.currentAccount.address) {
+                                        console.log('This is our game! Joining...');
+                                        this.currentGameId = latestGameId;
+                                        
+                                        // Re-enable button
+                                        createBtn.textContent = 'Create On-Chain Game';
+                                        createBtn.disabled = false;
+                                        
+                                        // Join the game
+                                        await this.setupGame(latestGameId, playerX, playerO);
+                                        gameCreated = true;
+                                    }
+                                }
+                            }
+                        } catch (queryError) {
+                            console.error('Error querying game state:', queryError);
+                        }
+                        
+                        if (!gameCreated) {
+                            createBtn.textContent = 'Create On-Chain Game';
+                            createBtn.disabled = false;
+                        }
+                        unsub();
+                    }
+                }
+
+                if (status.isFinalized) {
+                    console.log('Game creation finalized');
+                }
+            };
+
+            if (this.accountType === 'seed') {
+                unsub = await tx.signAndSend(this.keyringPair, txCallback);
+            } else {
+                const injector = await web3FromAddress(this.currentAccount.address);
+                unsub = await tx.signAndSend(
+                    this.currentAccount.address,
+                    { signer: injector.signer },
+                    txCallback
+                );
+            }
+
+        } catch (error) {
+            console.error('Error creating game:', error);
+            alert(`Failed to create game: ${error.message}`);
+            createBtn.textContent = 'Create On-Chain Game';
+            createBtn.disabled = false;
+        }
+    }
+
+    async setupGame(gameId, playerX, playerO) {
+        try {
+            this.currentGameId = gameId;
+            const currentAddr = this.currentAccount.address;
+
+            console.log('Player X:', playerX);
+            console.log('Player O:', playerO);
+            console.log('Current Address:', currentAddr);
+
+            if (currentAddr !== playerX && currentAddr !== playerO) {
+                alert('You are not a player in this game');
+                return;
+            }
+
+            // Determine which player we are
+            this.opponentAddress = currentAddr === playerX ? playerO : playerX;
+            this.currentPlayerSymbol = currentAddr === playerX ? 'X' : 'O';
+            
+            console.log(`You are Player ${this.currentPlayerSymbol}`);
+
+            // Update UI with game info
+            document.getElementById('gameIdValue').textContent = gameId;
+            document.getElementById('playerXAddress').textContent = playerX;
+            document.getElementById('playerOAddress').textContent = playerO;
+            document.getElementById('gameIdDisplay').classList.remove('hidden');
+            document.getElementById('gameInfoSection').classList.remove('hidden');
+            document.getElementById('gameStatsBottom').classList.remove('hidden');
+            document.getElementById('gameModeSection').style.display = 'none';
+            document.getElementById('gameBoardContainer').classList.remove('hidden');
+
+            // Load the board state from chain
+            await this.refreshBoardFromChain();
+
+            // Check game state
+            const game = await this.api.query.ticTacToe.games(gameId);
+            if (game.isSome) {
+                const gameData = game.unwrap();
+                const state = gameData.state;
+                
+                if (!state.isInProgress) {
+                    this.gameActive = false;
+                    const stateHuman = state.toHuman();
+                    if (stateHuman === 'XWon' || state.isXWon) {
+                        this.handleOnChainGameEnd(1);
+                    } else if (stateHuman === 'OWon' || state.isOWon) {
+                        this.handleOnChainGameEnd(2);
+                    } else if (stateHuman === 'Draw' || state.isDraw) {
+                        this.handleOnChainGameEnd(3);
+                    }
+                } else {
+                    this.gameActive = true;
+                }
+            }
+
+            // Update player turn
+            await this.updatePlayerTurn();
+
+            console.log(`Setup complete for game ${gameId} as Player ${this.currentPlayerSymbol}`);
+
+        } catch (error) {
+            console.error('Error setting up game:', error);
+            alert(`Failed to setup game: ${error.message}`);
+        }
+    }
+
+    async loadUserGames() {
+        if (!this.api || !this.currentAccount) {
+            return;
+        }
+
+        const dropdown = document.getElementById('gamesDropdown');
+        const currentSelection = dropdown.value;
+
+        try {
+            const currentAddr = this.currentAccount.address;
+            console.log('Loading games for:', currentAddr);
+
+            // Get next game ID to know how many games exist
+            const nextGameId = await this.api.query.ticTacToe.nextGameId();
+            const totalGames = nextGameId.toNumber();
+
+            console.log(`Checking ${totalGames} total games...`);
+
+            // Fetch all games and filter for this player
+            const userGames = [];
+            for (let gameId = 0; gameId < totalGames; gameId++) {
+                const game = await this.api.query.ticTacToe.games(gameId);
+                
+                if (game.isSome) {
+                    const gameData = game.unwrap();
+                    const playerXAddr = gameData.playerX || gameData.player_x;
+                    const playerOAddr = gameData.playerO || gameData.player_o;
+                    const playerX = playerXAddr.toString();
+                    const playerO = playerOAddr.toString();
+                    const state = gameData.state;
+                    const stateHuman = state.toHuman();
+
+                    // Check if user is in this game and it's in progress
+                    if ((playerX === currentAddr || playerO === currentAddr) && 
+                        (stateHuman === 'InProgress' || state.isInProgress)) {
+                        userGames.push({
+                            gameId,
+                            playerX,
+                            playerO,
+                            isPlayerX: playerX === currentAddr,
+                            opponent: (playerX === currentAddr ? playerO : playerX).slice(0, 12) + '...'
+                        });
+                    }
+                }
+            }
+
+            console.log(`Found ${userGames.length} active games`);
+
+            // Update dropdown
+            dropdown.innerHTML = '<option value="">-- Select a game --</option>';
+            
+            if (userGames.length > 0) {
+                userGames.forEach(game => {
+                    const option = document.createElement('option');
+                    option.value = game.gameId;
+                    option.textContent = `Game #${game.gameId} - You are ${game.isPlayerX ? 'X' : 'O'} vs ${game.opponent}`;
+                    dropdown.appendChild(option);
+                });
+
+                // Restore selection if it still exists
+                if (currentSelection && userGames.some(g => g.gameId.toString() === currentSelection)) {
+                    dropdown.value = currentSelection;
+                }
+            }
+
+            // Update button state
+            document.getElementById('joinSelectedGameBtn').disabled = !dropdown.value;
+
+        } catch (error) {
+            console.error('Error loading games:', error);
+            dropdown.innerHTML = '<option value="">Error loading games</option>';
+        }
+    }
+
+    async joinGameById(gameId) {
+        try {
+            // Query the game from storage
+            const game = await this.api.query.ticTacToe.games(gameId);
+
+            if (game.isNone) {
+                alert(`Game ${gameId} not found`);
+                return;
+            }
+
+            const gameData = game.unwrap();
+
+            // Extract player addresses
+            const playerXAddr = gameData.playerX || gameData.player_x;
+            const playerOAddr = gameData.playerO || gameData.player_o;
+            const playerX = playerXAddr.toString();
+            const playerO = playerOAddr.toString();
+
+            // Setup the game
+            await this.setupGame(gameId, playerX, playerO);
+
+        } catch (error) {
+            console.error('Error joining game:', error);
+            alert(`Failed to join game: ${error.message}`);
+        }
+    }
+
+    async subscribeToGameEvents() {
+        // Prevent subscribing multiple times
+        if (this.eventsSubscribed || !this.api) {
+            console.log('Events already subscribed or API not ready');
+            return;
+        }
+        
+        console.log('Subscribing to game events...');
+        this.eventsSubscribed = true;
+        
+        // Subscribe to events for all games
+        this.api.query.system.events((events) => {
+            events.forEach(({ event }) => {
+                if (this.api.events.ticTacToe.GameCreated.is(event)) {
+                    // Refresh games list when new game is created
+                    console.log('New game created, refreshing list...');
+                    this.loadUserGames();
+                }
+
+                if (this.api.events.ticTacToe.MoveMade.is(event)) {
+                    const [gameId, player, position] = event.data;
+                    if (gameId.toNumber() === this.currentGameId) {
+                        console.log(`Move made in game ${gameId} by ${player} at position ${position}`);
+                        // Refresh the board from chain
+                        this.refreshBoardFromChain();
+                    }
+                }
+                
+                if (this.api.events.ticTacToe.GameEnded.is(event)) {
+                    const [gameId, stateU8] = event.data;
+                    console.log(`Game ${gameId} ended, refreshing list...`);
+                    // Refresh games list when any game ends
+                    this.loadUserGames();
+                    
+                    if (gameId.toNumber() === this.currentGameId) {
+                        console.log(`Current game ${gameId} ended with state: ${stateU8}`);
+                        this.handleOnChainGameEnd(stateU8.toNumber());
+                    }
+                }
+            });
+        });
+    }
+
+    async refreshBoardFromChain() {
+        if (!this.api || this.currentGameId === null) {
+            return;
+        }
+
+        try {
+            console.log(`Refreshing board for game ${this.currentGameId}...`);
+            
+            // Fetch the game state from chain
+            const game = await this.api.query.ticTacToe.games(this.currentGameId);
+            
+            if (game.isNone) {
+                console.error('Game not found');
+                return;
+            }
+
+            const gameData = game.unwrap();
+            const board = gameData.board;
+            
+            // Update the board UI
+            board.forEach((cell, index) => {
+                const cellElement = document.querySelector(`[data-cell="${index}"]`);
+                const cellHuman = cell.toHuman();
+                
+                // Clear cell first
+                cellElement.textContent = '';
+                cellElement.classList.remove('taken', 'x', 'o');
+                this.gameBoard[index] = null;
+                
+                // Set cell based on chain state
+                if (cellHuman === 'X') {
+                    this.gameBoard[index] = 'X';
+                    cellElement.textContent = 'X';
+                    cellElement.classList.add('taken', 'x');
+                } else if (cellHuman === 'O') {
+                    this.gameBoard[index] = 'O';
+                    cellElement.textContent = 'O';
+                    cellElement.classList.add('taken', 'o');
+                }
+            });
+
+            // Update whose turn it is
+            const xTurn = gameData.xTurn || gameData.x_turn;
+            const isMyTurn = (this.currentPlayerSymbol === 'X' && xTurn) || 
+                           (this.currentPlayerSymbol === 'O' && !xTurn);
+            
+            console.log(`Board refreshed. X's turn: ${xTurn}, My turn: ${isMyTurn}`);
+            this.updatePlayerTurn();
+
+        } catch (error) {
+            console.error('Error refreshing board:', error);
+        }
+    }
+
+    handleOnChainGameEnd(stateU8) {
+        this.gameActive = false;
+        
+        const messageDiv = document.getElementById('gameMessage');
+        let message = '';
+        
+        switch(stateU8) {
+            case 1: // XWon
+                message = '🎉 Player X wins!';
+                messageDiv.className = 'game-message winner';
+                if (this.currentPlayerSymbol === 'X' || 
+                    (this.currentPlayerSymbol === 'O' && this.currentAccount.address === this.opponentAddress)) {
+                    this.gameStats.xWins++;
+                    document.getElementById('xWins').textContent = this.gameStats.xWins;
+                }
+                break;
+            case 2: // OWon
+                message = '🎉 Player O wins!';
+                messageDiv.className = 'game-message winner';
+                if (this.currentPlayerSymbol === 'O' || 
+                    (this.currentPlayerSymbol === 'X' && this.currentAccount.address !== this.opponentAddress)) {
+                    this.gameStats.oWins++;
+                    document.getElementById('oWins').textContent = this.gameStats.oWins;
+                }
+                break;
+            case 3: // Draw
+                message = "🤝 It's a draw!";
+                messageDiv.className = 'game-message draw';
+                this.gameStats.draws++;
+                document.getElementById('draws').textContent = this.gameStats.draws;
+                break;
+        }
+        
+        messageDiv.textContent = message;
+        messageDiv.classList.remove('hidden');
+        this.saveGameStats();
+    }
+
+    async handleCellClick(cellIndex) {
+        // Check if cell is already taken or game is not active
+        if (this.gameBoard[cellIndex] || !this.gameActive) {
+            return;
+        }
+
+        // Submit on-chain move
+        if (this.currentGameId !== null) {
+            await this.makeOnChainMove(cellIndex);
+        } else {
+            alert('Please create an on-chain game first');
+        }
+    }
+
+    async makeOnChainMove(position) {
+        if (!this.api || !this.currentAccount) {
+            alert('Please connect to chain and wallet first');
+            return;
+        }
+
+        try {
+            console.log(`Making on-chain move: game ${this.currentGameId}, position ${position}`);
+
+            const tx = this.api.tx.ticTacToe.makeMove(this.currentGameId, position);
+
+            let unsub;
+            const txCallback = ({ status, events, dispatchError }) => {
+                console.log('Move transaction status:', status.type);
+
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        const decoded = this.api.registry.findMetaError(dispatchError.asModule);
+                        console.error(`Move failed: ${decoded.section}.${decoded.name}: ${decoded.docs}`);
+                        alert(`Move failed: ${decoded.name}`);
+                    } else {
+                        console.error('Move failed:', dispatchError.toString());
+                        alert(`Move failed: ${dispatchError.toString()}`);
+                    }
+                }
+
+                if (status.isFinalized) {
+                    console.log('Move finalized');
+                    unsub();
+                }
+            };
+
+            if (this.accountType === 'seed') {
+                unsub = await tx.signAndSend(this.keyringPair, txCallback);
+            } else {
+                const injector = await web3FromAddress(this.currentAccount.address);
+                unsub = await tx.signAndSend(
+                    this.currentAccount.address,
+                    { signer: injector.signer },
+                    txCallback
+                );
+            }
+
+        } catch (error) {
+            console.error('Error making move:', error);
+            alert(`Failed to make move: ${error.message}`);
+        }
+    }
+
+    async updatePlayerTurn() {
+        const playerIndicator = document.getElementById('currentPlayer');
+        
+        if (!this.api || this.currentGameId === null) {
+            playerIndicator.textContent = `You are Player ${this.currentPlayerSymbol}`;
+            playerIndicator.className = `player-indicator player-${this.currentPlayerSymbol.toLowerCase()}`;
+            return;
+        }
+
+        try {
+            // Fetch current game state to check whose turn it is
+            const game = await this.api.query.ticTacToe.games(this.currentGameId);
+            if (game.isSome) {
+                const gameData = game.unwrap();
+                const xTurn = gameData.xTurn || gameData.x_turn;
+                const isMyTurn = (this.currentPlayerSymbol === 'X' && xTurn) || 
+                               (this.currentPlayerSymbol === 'O' && !xTurn);
+                
+                const turnPlayer = xTurn ? 'X' : 'O';
+                const turnText = isMyTurn ? 
+                    `🎯 Your Turn (Player ${this.currentPlayerSymbol})` : 
+                    `⏳ Waiting for Player ${turnPlayer}`;
+                
+                console.log(`Turn update: xTurn=${xTurn}, turnPlayer=${turnPlayer}, mySymbol=${this.currentPlayerSymbol}, isMyTurn=${isMyTurn}`);
+                
+                playerIndicator.textContent = turnText;
+                // Show indicator based on whose turn it actually is
+                playerIndicator.className = `player-indicator player-${turnPlayer.toLowerCase()}`;
+            }
+        } catch (error) {
+            console.error('Error updating player turn:', error);
+            playerIndicator.textContent = `Player ${this.currentPlayerSymbol}'s turn`;
+            playerIndicator.className = `player-indicator player-${this.currentPlayerSymbol.toLowerCase()}`;
+        }
+    }
+
+    resetGame() {
+        // Reset game state
+        this.gameBoard = Array(9).fill(null);
+        this.currentPlayerSymbol = 'X';
+        this.gameActive = true;
+        this.currentGameId = null;
+        this.opponentAddress = null;
+
+        // Clear all cells
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.textContent = '';
+            cell.className = 'cell';
+        });
+
+        // Hide message
+        document.getElementById('gameMessage').classList.add('hidden');
+        
+        // Reset on-chain UI elements
+        document.getElementById('gameIdDisplay').classList.add('hidden');
+        document.getElementById('gameInfoSection').classList.add('hidden');
+        document.getElementById('gameStatsBottom').classList.add('hidden');
+        document.getElementById('gameBoardContainer').classList.add('hidden');
+        document.getElementById('gameModeSection').style.display = 'block';
+        document.getElementById('opponentAddressInput').value = '';
+        document.getElementById('gamesDropdown').value = '';
+        document.getElementById('joinSelectedGameBtn').disabled = true;
+        
+        // Reload games list
+        this.loadUserGames();
+
+        // Reset player turn display
+        this.updatePlayerTurn();
+    }
+
+    saveGameStats() {
+        localStorage.setItem('tictactoe_stats', JSON.stringify(this.gameStats));
+    }
+
+    loadGameStats() {
+        const saved = localStorage.getItem('tictactoe_stats');
+        if (saved) {
+            try {
+                this.gameStats = JSON.parse(saved);
+                document.getElementById('xWins').textContent = this.gameStats.xWins;
+                document.getElementById('oWins').textContent = this.gameStats.oWins;
+                document.getElementById('draws').textContent = this.gameStats.draws;
+            } catch (e) {
+                console.error('Failed to load game stats:', e);
+            }
+        }
     }
 }
 

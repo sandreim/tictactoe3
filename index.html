@@ -23,7 +23,10 @@
                     <h2>📡 Connection</h2>
                     <div class="form-group">
                         <label for="rpcUrl">RPC Endpoint:</label>
-                        <input type="text" id="rpcUrl" value="wss://rpc.polkadot.io" placeholder="Enter parachain RPC URL">
+                        <input type="text" id="rpcUrl" value="ws://127.0.0.1:9988" placeholder="Enter parachain RPC URL">
+                        <small style="color: #718096; font-size: 0.85rem;">
+                            💡 Default: Local yet-another-parachain (ws://127.0.0.1:9988)
+                        </small>
                         <button id="connectBtn" class="btn primary">Connect</button>
                     </div>
                     <div id="chainInfo" class="chain-info hidden">
@@ -65,14 +68,17 @@
 
                         <div id="seedInput" class="seed-input hidden">
                             <div class="form-group">
-                                <label for="seedPhrase">Seed Phrase (12 or 24 words):</label>
-                                <textarea id="seedPhrase" rows="3" placeholder="Enter your seed phrase (e.g., word1 word2 word3...)"></textarea>
-                                <small style="color: #ef4444; font-size: 0.85rem;">
-                                    ⚠️ Never share your seed phrase! This is for testing only.
+                                <label for="seedPhrase">Seed String:</label>
+                                <textarea id="seedPhrase" rows="3" placeholder="Enter any string (will be hashed to create account)"></textarea>
+                                <small style="color: #718096; font-size: 0.85rem;">
+                                    💡 Any string will be SHA-256 hashed to create a deterministic account
+                                </small>
+                                <small style="color: #ef4444; font-size: 0.85rem; display: block; margin-top: 4px;">
+                                    ⚠️ Same string = same account. Keep it secret for testing!
                                 </small>
                             </div>
                             <div class="seed-buttons">
-                                <button id="importSeedBtn" class="btn primary">Import Account</button>
+                                <button id="importSeedBtn" class="btn primary">Create Account</button>
                                 <button id="cancelSeedBtn" class="btn secondary">Cancel</button>
                             </div>
                         </div>
@@ -101,25 +107,92 @@
                     </div>
                 </section>
 
-                <!-- Transaction Section -->
-                <section class="card transaction-card">
-                    <h2>💸 Send Transaction</h2>
-                    <div class="transaction-section">
-                        <div class="form-group">
-                            <label for="recipientAddress">Recipient Address:</label>
-                            <input type="text" id="recipientAddress" placeholder="Enter recipient address">
-                        </div>
-                        <div class="form-group">
-                            <label for="transferAmount">Amount:</label>
-                            <input type="number" id="transferAmount" value="1" min="0.000001" step="0.1" placeholder="Amount">
-                        </div>
-                        <div id="feeEstimate" class="fee-estimate hidden"></div>
-                        <button id="sendTransactionBtn" class="btn primary" disabled>
-                            Send
-                        </button>
+                <!-- Tic Tac Toe Game -->
+                <section class="card game-card">
+                    <div class="game-header">
+                        <h2>🎮 Tic Tac Toe</h2>
+                        <button id="resetGameBtn" class="btn-reset">🔄 New Game</button>
                     </div>
-                    <div id="transactionStatus" class="transaction-status hidden">
-                        <p id="transactionMessage"></p>
+                    
+                    <!-- Game Layout Container -->
+                    <div class="game-layout">
+                        <!-- Left Side: Game Board -->
+                        <div class="game-board-section">
+                            <div id="gameBoardContainer" class="hidden">
+                                <div class="game-board" id="gameBoard">
+                                    <div class="cell" data-cell="0"></div>
+                                    <div class="cell" data-cell="1"></div>
+                                    <div class="cell" data-cell="2"></div>
+                                    <div class="cell" data-cell="3"></div>
+                                    <div class="cell" data-cell="4"></div>
+                                    <div class="cell" data-cell="5"></div>
+                                    <div class="cell" data-cell="6"></div>
+                                    <div class="cell" data-cell="7"></div>
+                                    <div class="cell" data-cell="8"></div>
+                                </div>
+                                <div id="gameMessage" class="game-message hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Game Info & Controls -->
+                        <div class="game-info-section">
+                            <!-- On-Chain Game Setup -->
+                            <div class="game-mode-section" id="gameModeSection">
+                                <div id="onChainSetup" class="onchain-setup">
+                                    <h3 style="margin-bottom: 16px;">Create New Game</h3>
+                                    <div class="form-group">
+                                        <label for="opponentAddress">Opponent Address:</label>
+                                        <input type="text" id="opponentAddressInput" placeholder="Enter opponent's address">
+                                    </div>
+                                    <button id="createOnChainGameBtn" class="btn primary">Create On-Chain Game</button>
+                                    
+                                    <div style="margin: 20px 0; text-align: center; color: #718096; font-weight: 600;">OR</div>
+                                    
+                                    <h3 style="margin-bottom: 16px;">Your Active Games</h3>
+                                    <div class="form-group">
+                                        <select id="gamesDropdown" class="games-dropdown">
+                                            <option value="">-- Select a game --</option>
+                                        </select>
+                                    </div>
+                                    <button id="joinSelectedGameBtn" class="btn primary" disabled>Join Selected Game</button>
+                                </div>
+                            </div>
+
+                            <!-- Game Info Display (shown when in a game) -->
+                            <div id="gameIdDisplay" class="game-id-display hidden">
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Game ID:</strong> <span id="gameIdValue" class="game-id-value"></span>
+                                </div>
+                                <div style="font-size: 0.85rem; margin-bottom: 4px;">
+                                    <strong>Player X:</strong> <span id="playerXAddress" style="font-family: monospace; word-break: break-all;"></span>
+                                </div>
+                                <div style="font-size: 0.85rem;">
+                                    <strong>Player O:</strong> <span id="playerOAddress" style="font-family: monospace; word-break: break-all;"></span>
+                                </div>
+                            </div>
+
+                            <div class="game-info hidden" id="gameInfoSection">
+                                <div class="player-turn">
+                                    <span id="currentPlayer" class="player-indicator player-x">Player X's turn</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scores at Bottom -->
+                    <div class="game-stats-bottom hidden" id="gameStatsBottom">
+                        <div class="stat">
+                            <span class="stat-label">X Wins:</span>
+                            <span id="xWins" class="stat-number">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">O Wins:</span>
+                            <span id="oWins" class="stat-number">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Draws:</span>
+                            <span id="draws" class="stat-number">0</span>
+                        </div>
                     </div>
                 </section>
 
