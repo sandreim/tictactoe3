@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick and dirty demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 Polkadot Parachain Explorer</h1>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Disconnected</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="grid">
+                <!-- Connection Section -->
+                <section class="card">
+                    <h2>📡 Connection</h2>
+                    <div class="form-group">
+                        <label for="rpcUrl">RPC Endpoint:</label>
+                        <input type="text" id="rpcUrl" value="wss://rpc.polkadot.io" placeholder="Enter parachain RPC URL">
+                        <button id="connectBtn" class="btn primary">Connect</button>
+                    </div>
+                    <div id="chainInfo" class="chain-info hidden">
+                        <p><strong>Chain:</strong> <span id="chainName">-</span></p>
+                        <p><strong>Version:</strong> <span id="chainVersion">-</span></p>
+                    </div>
+                </section>
+
+                <!-- Block Information -->
+                <section class="card">
+                    <h2>📦 Block Information</h2>
+                    <div class="block-info">
+                        <div class="block-item">
+                            <label>Best Block:</label>
+                            <div class="block-details">
+                                <span class="block-number" id="bestBlockNumber">-</span>
+                                <span class="block-hash" id="bestBlockHash">-</span>
+                            </div>
+                        </div>
+                        <div class="block-item">
+                            <label>Finalized Block:</label>
+                            <div class="block-details">
+                                <span class="block-number" id="finalizedBlockNumber">-</span>
+                                <span class="block-hash" id="finalizedBlockHash">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                                                <!-- Account Section -->
+                <section class="card">
+                    <h2>👤 Account</h2>
+                    <div class="account-section">
+                        <div class="account-options">
+                            <button id="connectWalletBtn" class="btn secondary">Connect Extension Wallet</button>
+                            <span style="color: #718096; font-size: 0.9rem;">OR</span>
+                            <button id="useSeedBtn" class="btn secondary">Use Seed Phrase</button>
+                        </div>
+
+                        <div id="seedInput" class="seed-input hidden">
+                            <div class="form-group">
+                                <label for="seedPhrase">Seed Phrase (12 or 24 words):</label>
+                                <textarea id="seedPhrase" rows="3" placeholder="Enter your seed phrase (e.g., word1 word2 word3...)"></textarea>
+                                <small style="color: #ef4444; font-size: 0.85rem;">
+                                    ⚠️ Never share your seed phrase! This is for testing only.
+                                </small>
+                            </div>
+                            <div class="seed-buttons">
+                                <button id="importSeedBtn" class="btn primary">Import Account</button>
+                                <button id="cancelSeedBtn" class="btn secondary">Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Update Mode Toggle - Always Visible -->
+                        <div class="update-controls">
+                            <strong>Update Mode:</strong>
+                            <div class="toggle-container">
+                                <label class="toggle-label" title="Best Block: Faster updates (~6s) but may include temporary forks. Finalized: Slower updates (~60s) but guaranteed finality.">
+                                    <input type="checkbox" id="updateModeToggle" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-text">
+                                        <span class="mode-best">⚡ Best Block</span>
+                                        <span class="mode-finalized">🔒 Finalized</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="accountInfo" class="account-info hidden">
+                            <p><strong>Address:</strong> <span id="accountAddress">-</span></p>
+                            <div id="accountType" style="font-size: 0.85rem; color: #718096; margin-bottom: 8px;"></div>
+                            <div><strong>Balance Information:</strong></div>
+                            <div id="accountBalance" class="balance-details">-</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Transaction Section -->
+                <section class="card transaction-card">
+                    <h2>💸 Send Transaction</h2>
+                    <div class="transaction-section">
+                        <div class="form-group">
+                            <label for="recipientAddress">Recipient Address:</label>
+                            <input type="text" id="recipientAddress" placeholder="Enter recipient address">
+                        </div>
+                        <div class="form-group">
+                            <label for="transferAmount">Amount:</label>
+                            <input type="number" id="transferAmount" value="1" min="0.000001" step="0.1" placeholder="Amount">
+                        </div>
+                        <div id="feeEstimate" class="fee-estimate hidden"></div>
+                        <button id="sendTransactionBtn" class="btn primary" disabled>
+                            Send
+                        </button>
+                    </div>
+                    <div id="transactionStatus" class="transaction-status hidden">
+                        <p id="transactionMessage"></p>
+                    </div>
+                </section>
+
+                <!-- Transaction Timing Chart -->
+                <section class="card timing-chart-card">
+                    <h2>📊 Transaction Timing Analysis</h2>
+                    <div class="chart-container">
+                        <canvas id="timingChart"></canvas>
+                    </div>
+                    <div id="chartStats" class="chart-stats hidden">
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Ready:</span>
+                            <span id="avgReady" class="stat-value">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg InBlock:</span>
+                            <span id="avgInBlock" class="stat-value">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Finalized:</span>
+                            <span id="avgFinalized" class="stat-value">-</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Transaction History -->
+                <section class="card transaction-history-card">
+                    <div class="history-header">
+                        <h2>📜 Transaction History</h2>
+                        <div class="history-controls">
+                            <span id="pendingCount" class="pending-count hidden">⏳ 0 pending</span>
+                            <button id="clearHistoryBtn" class="btn-clear" title="Clear history">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="transactionHistory" class="transaction-history">
+                        <p class="no-transactions">No transactions yet. Send your first transaction to see it here!</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>Built with ❤️ using Polkadot.js API</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html> 
