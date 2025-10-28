@@ -3,110 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick and dirty demo</title>
+    <title>Let's play a game</title>
+    <!-- Saw movie themed favicon (Billy the puppet from Jigsaw) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='face' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23f5f5f5'/%3E%3Cstop offset='100%25' style='stop-color:%23d0d0d0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='48' fill='url(%23face)' stroke='%23333' stroke-width='2'/%3E%3Cellipse cx='50' cy='55' rx='35' ry='30' fill='%23000' opacity='0.05'/%3E%3Cellipse cx='33' cy='38' rx='9' ry='11' fill='%23000'/%3E%3Cellipse cx='67' cy='38' rx='9' ry='11' fill='%23000'/%3E%3Ccircle cx='33' cy='37' r='6' fill='%23fff'/%3E%3Ccircle cx='67' cy='37' r='6' fill='%23fff'/%3E%3Cpath d='M 28 37 Q 30 35 32 35 Q 34 35 35 37 Q 35 39 33 40 Q 30 40 28 38 Q 27 37 28 36' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M 62 37 Q 64 35 66 35 Q 68 35 69 37 Q 69 39 67 40 Q 64 40 62 38 Q 61 37 62 36' fill='none' stroke='%23000' stroke-width='2'/%3E%3Ccircle cx='20' cy='48' r='8' fill='%23ff0000' opacity='0.6'/%3E%3Ccircle cx='80' cy='48' r='8' fill='%23ff0000' opacity='0.6'/%3E%3Cpath d='M 28 65 Q 35 68 42 69 Q 50 70 58 69 Q 65 68 72 65' stroke='%23000' stroke-width='4' fill='none'/%3E%3Cpath d='M 28 66 Q 35 69 42 70 Q 50 71 58 70 Q 65 69 72 66' stroke='%23800' stroke-width='2.5' fill='none'/%3E%3Cline x1='35' y1='67' x2='35' y2='70' stroke='%23000' stroke-width='2'/%3E%3Cline x1='42' y1='69' x2='42' y2='72' stroke='%23000' stroke-width='2'/%3E%3Cline x1='50' y1='70' x2='50' y2='73' stroke='%23000' stroke-width='2'/%3E%3Cline x1='58' y1='69' x2='58' y2='72' stroke='%23000' stroke-width='2'/%3E%3Cline x1='65' y1='67' x2='65' y2='70' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M 42 73 Q 43 76 44 75 L 43 73' fill='%23900'/%3E%3Cpath d='M 57 73 Q 58 76 59 75 L 58 73' fill='%23900'/%3E%3Cpath d='M 35 45 Q 40 43 45 45' stroke='%23000' stroke-width='1.5' fill='none'/%3E%3Cpath d='M 55 45 Q 60 43 65 45' stroke='%23000' stroke-width='1.5' fill='none'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Background layer with industrial image -->
+    <div class="background-layer"></div>
+    
     <div class="container">
         <header>
-            <h1>🔗 Polkadot Parachain Explorer</h1>
-            <div class="connection-status" id="connectionStatus">
-                <span class="status-indicator" id="statusIndicator"></span>
-                <span id="statusText">Disconnected</span>
+            <div class="header-left">
+                <svg width="65" height="65" viewBox="0 0 100 100" style="margin-right: 15px; filter: drop-shadow(0 0 15px rgba(170, 0, 0, 0.9));">
+                    <defs>
+                        <linearGradient id="faceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#f5f5f5;stop-opacity:1"/>
+                            <stop offset="100%" style="stop-color:#d0d0d0;stop-opacity:1"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- White face -->
+                    <circle cx="50" cy="50" r="48" fill="url(#faceGrad)" stroke="#333" stroke-width="2"/>
+                    
+                    <!-- Face shadow for depth -->
+                    <ellipse cx="50" cy="55" rx="35" ry="30" fill="#000" opacity="0.05"/>
+                    
+                    <!-- Eye sockets (black) -->
+                    <ellipse cx="33" cy="38" rx="9" ry="11" fill="#000"/>
+                    <ellipse cx="67" cy="38" rx="9" ry="11" fill="#000"/>
+                    
+                    <!-- White eyes -->
+                    <circle cx="33" cy="37" r="6" fill="#fff"/>
+                    <circle cx="67" cy="37" r="6" fill="#fff"/>
+                    
+                    <!-- Spiral pupils (Billy's signature look) -->
+                    <path d="M 28 37 Q 30 35 32 35 Q 34 35 35 37 Q 35 39 33 40 Q 30 40 28 38 Q 27 37 28 36" 
+                          fill="none" stroke="#000" stroke-width="2" opacity="1"/>
+                    <path d="M 62 37 Q 64 35 66 35 Q 68 35 69 37 Q 69 39 67 40 Q 64 40 62 38 Q 61 37 62 36" 
+                          fill="none" stroke="#000" stroke-width="2" opacity="1"/>
+                    
+                    <!-- Red cheeks (Billy's signature) -->
+                    <circle cx="20" cy="48" r="8" fill="#ff0000" opacity="0.6"/>
+                    <circle cx="80" cy="48" r="8" fill="#ff0000" opacity="0.6"/>
+                    
+                    <!-- Eyebrows -->
+                    <path d="M 35 45 Q 40 43 45 45" stroke="#000" stroke-width="1.5" fill="none"/>
+                    <path d="M 55 45 Q 60 43 65 45" stroke="#000" stroke-width="1.5" fill="none"/>
+                    
+                    <!-- Wide creepy smile -->
+                    <path d="M 28 65 Q 35 68 42 69 Q 50 70 58 69 Q 65 68 72 65" stroke="#000" stroke-width="4" fill="none"/>
+                    <path d="M 28 66 Q 35 69 42 70 Q 50 71 58 70 Q 65 69 72 66" stroke="#800" stroke-width="2.5" fill="none"/>
+                    
+                    <!-- Teeth -->
+                    <line x1="35" y1="67" x2="35" y2="70" stroke="#000" stroke-width="2"/>
+                    <line x1="42" y1="69" x2="42" y2="72" stroke="#000" stroke-width="2"/>
+                    <line x1="50" y1="70" x2="50" y2="73" stroke="#000" stroke-width="2"/>
+                    <line x1="58" y1="69" x2="58" y2="72" stroke="#000" stroke-width="2"/>
+                    <line x1="65" y1="67" x2="65" y2="70" stroke="#000" stroke-width="2"/>
+                    
+                    <!-- Blood drips from smile -->
+                    <path d="M 42 73 Q 43 76 44 75 L 43 73" fill="#900"/>
+                    <path d="M 57 73 Q 58 76 59 75 L 58 73" fill="#900"/>
+                </svg>
+                <h1>🔗 Let's play a game</h1>
+            </div>
+            <div class="header-center">
+                <!-- RPC Connection -->
+                <div class="header-connection">
+                    <input type="text" id="rpcUrl" class="rpc-input-header" value="ws://127.0.0.1:9988" placeholder="RPC URL">
+                    <button id="connectBtn" class="btn primary" style="min-width: 120px; padding: 8px 20px;">Connect</button>
+                    <div class="connection-status" id="connectionStatus">
+                        <span class="status-indicator" id="statusIndicator"></span>
+                        <span id="statusText">Disconnected</span>
+                    </div>
+                </div>
+                <div id="chainInfo" class="chain-info-header hidden">
+                    <span id="chainName">-</span> <span style="color: #718096;">v</span><span id="chainVersion">-</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <!-- Settings -->
+                <div class="header-settings">
+                    <div id="accountType" class="account-type-header"></div>
+                </div>
+                
+                <!-- Account Selection -->
+                <div class="header-account">
+                    <div class="account-options-header">
+                        <button id="connectWalletBtn" class="btn secondary">Connect Wallet</button>
+                        <button id="useSeedBtn" class="btn secondary">Use Seed</button>
+                    </div>
+                    <div id="accountInfo" class="account-info-header hidden">
+                        <div class="account-address-header">
+                            <span id="accountAddress">-</span>
+                        </div>
+                        <div class="account-balance-header">
+                            <span id="accountBalance">-</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
+        
+        <!-- Seed Input Modal (moved outside header) -->
+        <div id="seedInput" class="seed-input-modal hidden">
+            <div class="seed-modal-content">
+                <h3>Create Account from Seed</h3>
+                <div class="form-group">
+                    <label for="seedPhrase">Seed String:</label>
+                    <textarea id="seedPhrase" rows="3" placeholder="Enter any string (will be hashed to create account)"></textarea>
+                    <small style="color: #718096; font-size: 0.85rem;">
+                        💡 Any string will be SHA-256 hashed to create a deterministic account
+                    </small>
+                </div>
+                <div class="seed-buttons">
+                    <button id="importSeedBtn" class="btn primary">Create Account</button>
+                    <button id="cancelSeedBtn" class="btn secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
 
         <main>
+            <!-- Block Rolling Window Banner -->
+            <div class="block-banner hidden" id="blockBanner">
+                <div id="blockWindow" class="block-window">
+                    <!-- Blocks will be added here dynamically -->
+                </div>
+                <div id="blockTimeline" class="block-timeline">
+                    <!-- Timeline ticks will be added here dynamically -->
+                </div>
+            </div>
+
             <div class="grid">
-                <!-- Connection Section -->
-                <section class="card">
-                    <h2>📡 Connection</h2>
-                    <div class="form-group">
-                        <label for="rpcUrl">RPC Endpoint:</label>
-                        <input type="text" id="rpcUrl" value="ws://127.0.0.1:9988" placeholder="Enter parachain RPC URL">
-                        <small style="color: #718096; font-size: 0.85rem;">
-                            💡 Default: Local yet-another-parachain (ws://127.0.0.1:9988)
-                        </small>
-                        <button id="connectBtn" class="btn primary">Connect</button>
-                    </div>
-                    <div id="chainInfo" class="chain-info hidden">
-                        <p><strong>Chain:</strong> <span id="chainName">-</span></p>
-                        <p><strong>Version:</strong> <span id="chainVersion">-</span></p>
-                    </div>
-                </section>
-
-                <!-- Block Information -->
-                <section class="card">
-                    <h2>📦 Block Information</h2>
-                    <div class="block-info">
-                        <div class="block-item">
-                            <label>Best Block:</label>
-                            <div class="block-details">
-                                <span class="block-number" id="bestBlockNumber">-</span>
-                                <span class="block-hash" id="bestBlockHash">-</span>
-                            </div>
-                        </div>
-                        <div class="block-item">
-                            <label>Finalized Block:</label>
-                            <div class="block-details">
-                                <span class="block-number" id="finalizedBlockNumber">-</span>
-                                <span class="block-hash" id="finalizedBlockHash">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                                                <!-- Account Section -->
-                <section class="card">
-                    <h2>👤 Account</h2>
-                    <div class="account-section">
-                        <div class="account-options">
-                            <button id="connectWalletBtn" class="btn secondary">Connect Extension Wallet</button>
-                            <span style="color: #718096; font-size: 0.9rem;">OR</span>
-                            <button id="useSeedBtn" class="btn secondary">Use Seed Phrase</button>
-                        </div>
-
-                        <div id="seedInput" class="seed-input hidden">
-                            <div class="form-group">
-                                <label for="seedPhrase">Seed String:</label>
-                                <textarea id="seedPhrase" rows="3" placeholder="Enter any string (will be hashed to create account)"></textarea>
-                                <small style="color: #718096; font-size: 0.85rem;">
-                                    💡 Any string will be SHA-256 hashed to create a deterministic account
-                                </small>
-                                <small style="color: #ef4444; font-size: 0.85rem; display: block; margin-top: 4px;">
-                                    ⚠️ Same string = same account. Keep it secret for testing!
-                                </small>
-                            </div>
-                            <div class="seed-buttons">
-                                <button id="importSeedBtn" class="btn primary">Create Account</button>
-                                <button id="cancelSeedBtn" class="btn secondary">Cancel</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Update Mode Toggle - Always Visible -->
-                        <div class="update-controls">
-                            <strong>Update Mode:</strong>
-                            <div class="toggle-container">
-                                <label class="toggle-label" title="Best Block: Faster updates (~6s) but may include temporary forks. Finalized: Slower updates (~60s) but guaranteed finality.">
-                                    <input type="checkbox" id="updateModeToggle" checked>
-                                    <span class="toggle-slider"></span>
-                                    <span class="toggle-text">
-                                        <span class="mode-best">⚡ Best Block</span>
-                                        <span class="mode-finalized">🔒 Finalized</span>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div id="accountInfo" class="account-info hidden">
-                            <p><strong>Address:</strong> <span id="accountAddress">-</span></p>
-                            <div id="accountType" style="font-size: 0.85rem; color: #718096; margin-bottom: 8px;"></div>
-                            <div><strong>Balance Information:</strong></div>
-                            <div id="accountBalance" class="balance-details">-</div>
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Tic Tac Toe Game -->
                 <section class="card game-card">
                     <div class="game-header">
@@ -139,22 +167,16 @@
                             <!-- On-Chain Game Setup -->
                             <div class="game-mode-section" id="gameModeSection">
                                 <div id="onChainSetup" class="onchain-setup">
-                                    <h3 style="margin-bottom: 16px;">Create New Game</h3>
-                                    <div class="form-group">
-                                        <label for="opponentAddress">Opponent Address:</label>
-                                        <input type="text" id="opponentAddressInput" placeholder="Enter opponent's address">
+                                    <h3 style="margin-bottom: 16px; text-align: center; font-size: 1.3rem;">⚡ FIND YOUR OPPONENT</h3>
+                                    <p style="text-align: center; color: #8aa88a; margin-bottom: 20px; font-size: 0.9rem; line-height: 1.5;">
+                                        Enter the deadly game.<br/>
+                                        Winner takes 50% of loser's funds.
+                                    </p>
+                                    <button id="playGameBtn" class="btn primary" style="width: 100%; font-size: 1.2rem; padding: 16px; letter-spacing: 2px;">START GAME</button>
+                                    <button id="cancelMatchmakingBtn" class="btn secondary hidden" style="width: 100%; margin-top: 8px;">Cancel Matchmaking</button>
+                                    <div id="matchmakingStatus" class="hidden" style="margin-top: 12px; padding: 12px; background: rgba(100, 140, 100, 0.2); border-radius: 4px; text-align: center; color: #a8c8a8; font-family: 'Courier New', monospace;">
+                                        🔍 Searching for opponent...
                                     </div>
-                                    <button id="createOnChainGameBtn" class="btn primary">Create On-Chain Game</button>
-                                    
-                                    <div style="margin: 20px 0; text-align: center; color: #718096; font-weight: 600;">OR</div>
-                                    
-                                    <h3 style="margin-bottom: 16px;">Your Active Games</h3>
-                                    <div class="form-group">
-                                        <select id="gamesDropdown" class="games-dropdown">
-                                            <option value="">-- Select a game --</option>
-                                        </select>
-                                    </div>
-                                    <button id="joinSelectedGameBtn" class="btn primary" disabled>Join Selected Game</button>
                                 </div>
                             </div>
 
@@ -174,6 +196,14 @@
                             <div class="game-info hidden" id="gameInfoSection">
                                 <div class="player-turn">
                                     <span id="currentPlayer" class="player-indicator player-x">Player X's turn</span>
+                                </div>
+                                <div id="timeoutSection" class="timeout-section hidden" style="margin-top: 12px; text-align: center; padding: 12px; background: rgba(139, 0, 0, 0.2); border-radius: 4px;">
+                                    <div id="timeoutTimer" style="color: #ff8800; font-size: 0.9rem; margin-bottom: 8px; font-family: 'Courier New', monospace;">
+                                        ⏱️ Opponent has <span id="timeoutCountdown" style="font-weight: bold; color: #ff0000;">60</span>s to move
+                                    </div>
+                                    <button id="claimTimeoutBtn" class="btn secondary hidden" style="width: 100%; font-size: 0.9rem; padding: 10px; background: #8b0000; border-color: #ff0000;">
+                                        ⚡ CLAIM VICTORY (TIMEOUT)
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -196,28 +226,6 @@
                     </div>
                 </section>
 
-                <!-- Transaction Timing Chart -->
-                <section class="card timing-chart-card">
-                    <h2>📊 Transaction Timing Analysis</h2>
-                    <div class="chart-container">
-                        <canvas id="timingChart"></canvas>
-                    </div>
-                    <div id="chartStats" class="chart-stats hidden">
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Ready:</span>
-                            <span id="avgReady" class="stat-value">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Avg InBlock:</span>
-                            <span id="avgInBlock" class="stat-value">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Finalized:</span>
-                            <span id="avgFinalized" class="stat-value">-</span>
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Transaction History -->
                 <section class="card transaction-history-card">
                     <div class="history-header">
@@ -231,6 +239,72 @@
                         <p class="no-transactions">No transactions yet. Send your first transaction to see it here!</p>
                     </div>
                 </section>
+
+                <!-- Transaction Timing Chart -->
+                <section class="card timing-chart-card">
+                    <h2>📊 Transaction Timing Analysis</h2>
+                    <div class="chart-container">
+                        <canvas id="timingChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Transaction Timing Stats -->
+                <section class="card timing-stats-card" id="chartStats">
+                    <h2>📈 Statistics</h2>
+                    <div class="stats-content hidden" id="statsContent">
+                        <div class="metric-group">
+                            <h4 class="metric-title">⚡ Ready</h4>
+                            <div class="metric-stats">
+                                <div class="metric-row">
+                                    <span class="metric-label">Min:</span>
+                                    <span id="minReady" class="metric-value">-</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">Max:</span>
+                                    <span id="maxReady" class="metric-value">-</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">Avg:</span>
+                                    <span id="avgReady" class="metric-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metric-group">
+                            <h4 class="metric-title">📦 InBlock</h4>
+                            <div class="metric-stats">
+                                <div class="metric-row">
+                                    <span class="metric-label">Min:</span>
+                                    <span id="minInBlock" class="metric-value">-</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">Max:</span>
+                                    <span id="maxInBlock" class="metric-value">-</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">Avg:</span>
+                                    <span id="avgInBlock" class="metric-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metric-group">
+                            <h4 class="metric-title">✅ Finalized</h4>
+                            <div class="metric-stats">
+                                <div class="metric-row">
+                                    <span class="metric-label">Min:</span>
+                                    <span id="minFinalized" class="metric-value">-</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">Max:</span>
+                                    <span id="maxFinalized" class="metric-value">-</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">Avg:</span>
+                                    <span id="avgFinalized" class="metric-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
 
@@ -241,6 +315,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script type="module" src="app.js"></script>
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html> 
