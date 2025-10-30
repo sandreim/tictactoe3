@@ -76,47 +76,59 @@ export class TransactionManager {
     }
 
     calculateStats() {
-        const transactions = this.transactionHistory.filter(tx => 
-            tx.status === 'success' && tx.timing.ready && tx.timing.inBlock && tx.timing.finalized
-        );
-
-        if (transactions.length === 0) {
-            return null;
-        }
-
+        console.log('Calculating stats from', this.transactionHistory.length, 'total transactions');
+        
         const readyTimes = [];
         const inBlockTimes = [];
         const finalizedTimes = [];
 
-        transactions.forEach(tx => {
-            const ready = tx.timing.ready - tx.timing.submitted;
-            const inBlock = tx.timing.inBlock - tx.timing.submitted;
-            const finalized = tx.timing.finalized - tx.timing.submitted;
-
-            readyTimes.push(ready);
-            inBlockTimes.push(inBlock);
-            finalizedTimes.push(finalized);
+        // Collect timing data for each state independently
+        this.transactionHistory.forEach(tx => {
+            if (tx.timing.ready) {
+                readyTimes.push(tx.timing.ready - tx.timing.submitted);
+            }
+            if (tx.timing.inBlock) {
+                inBlockTimes.push(tx.timing.inBlock - tx.timing.submitted);
+            }
+            if (tx.timing.finalized) {
+                finalizedTimes.push(tx.timing.finalized - tx.timing.submitted);
+            }
         });
 
-        const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
-        const min = arr => Math.min(...arr);
-        const max = arr => Math.max(...arr);
+        console.log('Stats data:', {
+            ready: readyTimes.length,
+            inBlock: inBlockTimes.length,
+            finalized: finalizedTimes.length
+        });
+
+        // Return null if no timing data at all
+        if (readyTimes.length === 0 && inBlockTimes.length === 0 && finalizedTimes.length === 0) {
+            console.log('No timing data available for stats');
+            return null;
+        }
+
+        const avg = arr => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        const min = arr => arr.length > 0 ? Math.min(...arr) : 0;
+        const max = arr => arr.length > 0 ? Math.max(...arr) : 0;
 
         return {
             ready: {
                 min: min(readyTimes),
                 max: max(readyTimes),
-                avg: avg(readyTimes)
+                avg: avg(readyTimes),
+                count: readyTimes.length
             },
             inBlock: {
                 min: min(inBlockTimes),
                 max: max(inBlockTimes),
-                avg: avg(inBlockTimes)
+                avg: avg(inBlockTimes),
+                count: inBlockTimes.length
             },
             finalized: {
                 min: min(finalizedTimes),
                 max: max(finalizedTimes),
-                avg: avg(finalizedTimes)
+                avg: avg(finalizedTimes),
+                count: finalizedTimes.length
             }
         };
     }

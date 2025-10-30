@@ -24,7 +24,6 @@ export class UIManager {
         // Always update board (even when game ended) to show final state
         this.updateBoardFromState(gameState);
         
-        // Only update turn indicator if game is still active
         this.updatePlayerTurnFromState(gameState);
         
         console.log('✅ UI update complete');
@@ -79,15 +78,15 @@ export class UIManager {
             return;
         }
         
-        // Show player symbol and turn status
-        const newText = gameState.isMyTurn 
-            ? `You are ${gameState.playerSymbol} - Your turn!`
-            : `You are ${gameState.playerSymbol} - Opponent's turn...`;
+        if (gameState.isEnded === true) {
+            playerIndicator.textContent = `Game over`;
+        } else {
+            // Show player symbol and turn status
+            playerIndicator.textContent = gameState.isMyTurn 
+                ? `You are ${gameState.playerSymbol} - Your turn!`
+                : `You are ${gameState.playerSymbol} - Opponent's turn...`;
+        }
         
-        console.log(`  Old text: "${playerIndicator.textContent}"`);
-        console.log(`  New text: "${newText}"`);
-        
-        playerIndicator.textContent = newText;
         playerIndicator.className = `player-indicator player-${gameState.playerSymbol.toLowerCase()}`;
         
         console.log('✅ Player turn updated successfully');
@@ -149,6 +148,19 @@ export class UIManager {
             transactionHistory: document.getElementById('transactionHistory'),
             clearHistoryBtn: document.getElementById('clearHistoryBtn'),
             pendingCount: document.getElementById('pendingCount'),
+            
+            // Transaction Chart & Stats
+            timingChart: document.getElementById('timingChart'),
+            statsContent: document.getElementById('statsContent'),
+            minReady: document.getElementById('minReady'),
+            maxReady: document.getElementById('maxReady'),
+            avgReady: document.getElementById('avgReady'),
+            minInBlock: document.getElementById('minInBlock'),
+            maxInBlock: document.getElementById('maxInBlock'),
+            avgInBlock: document.getElementById('avgInBlock'),
+            minFinalized: document.getElementById('minFinalized'),
+            maxFinalized: document.getElementById('maxFinalized'),
+            avgFinalized: document.getElementById('avgFinalized'),
 
             // Blocks
             blockBanner: document.getElementById('blockBanner'),
@@ -193,7 +205,7 @@ export class UIManager {
     }
 
     updateBalance(balance) {
-        this.elements.accountBalance.textContent = `Balance: ${balance.free}`;
+        this.elements.accountBalance.textContent = `Balance: ${balance.free} UNIT`;
     }
 
     hideAccountInfo() {
@@ -233,21 +245,24 @@ export class UIManager {
 
     updateGameInfo(gameId, playerX, playerO) {
         this.elements.gameIdValue.textContent = gameId;
-        this.elements.playerXAddress.textContent = playerX;
-        this.elements.playerOAddress.textContent = playerO;
+        
+        // Get current player address to highlight "YOU"
+        const currentAddress = this.gameManager.accountManager.getAddress();
+        
+        // Format player X
+        const playerXText = playerX === currentAddress 
+            ? `YOU (${this.shortenAddress(playerX)})`
+            : this.shortenAddress(playerX);
+        
+        // Format player O
+        const playerOText = playerO === currentAddress 
+            ? `YOU (${this.shortenAddress(playerO)})`
+            : this.shortenAddress(playerO);
+        
+        this.elements.playerXAddress.textContent = playerXText;
+        this.elements.playerOAddress.textContent = playerOText;
         this.elements.gameIdDisplay.classList.remove('hidden');
     }
-
-    /**
-     * @deprecated Use updateGameUI() instead - called automatically by game state changes
-     */
-    updateBoard(board) {
-        console.warn('⚠️ updateBoard() is deprecated - UI updates automatically from game state');
-        // Keep for backward compatibility but don't use
-        this.updateBoardFromState({ board });
-    }
-
-
     showGameEndMessage(message, winnerType) {
         this.elements.gameMessage.textContent = message;
         this.elements.gameMessage.className = `game-message ${winnerType}`;
@@ -321,6 +336,205 @@ export class UIManager {
         } else {
             this.elements.pendingCount.classList.add('hidden');
         }
+    }
+
+    // Transaction Chart & Stats
+    initializeChart() {
+        if (this.chart) {
+            console.log('Chart already initialized');
+            return;
+        }
+        
+        if (!this.elements.timingChart) {
+            console.error('Chart canvas element not found');
+            return;
+        }
+        
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js library not loaded yet');
+            return;
+        }
+        
+        try {
+            console.log('Initializing transaction timing chart...');
+            const ctx = this.elements.timingChart.getContext('2d');
+            this.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Ready',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            spanGaps: true // Connect points even with null values
+                        },
+                        {
+                            label: 'InBlock',
+                            data: [],
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            spanGaps: true
+                        },
+                        {
+                            label: 'Finalized',
+                            data: [],
+                            borderColor: 'rgb(153, 102, 255)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            spanGaps: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#c5d9c5'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Transaction Timing (ms)',
+                            color: '#c5d9c5'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#c5d9c5'
+                            },
+                            grid: {
+                                color: 'rgba(197, 217, 197, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#c5d9c5'
+                            },
+                            grid: {
+                                color: 'rgba(197, 217, 197, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Chart initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize chart:', error);
+            this.chart = null;
+        }
+    }
+
+    updateChart(transactions) {
+        console.log('📊 updateChart called with', transactions.length, 'transactions');
+        
+        if (!this.chart) {
+            console.log('Chart not initialized, initializing now...');
+            this.initializeChart();
+        }
+
+        if (!this.chart) {
+            console.warn('Chart initialization failed, cannot update');
+            return; // Chart initialization failed
+        }
+
+        // Show all transactions that have at least started (have ready timing)
+        const validTxs = transactions
+            .filter(tx => tx.timing.ready) // At least have ready timing
+            .slice(0, 20) // Show last 20 transactions
+            .reverse(); // Oldest first for chart
+
+        console.log('Found', validTxs.length, 'transactions with timing data for chart');
+
+        if (validTxs.length === 0) {
+            console.log('No transactions with timing data to display');
+            // Clear chart
+            this.chart.data.labels = [];
+            this.chart.data.datasets[0].data = [];
+            this.chart.data.datasets[1].data = [];
+            this.chart.data.datasets[2].data = [];
+            this.chart.update();
+            return;
+        }
+
+        const labels = validTxs.map((_, index) => `TX ${index + 1}`);
+        
+        // Calculate timing deltas, use null for missing data
+        const readyData = validTxs.map(tx => 
+            tx.timing.ready ? tx.timing.ready - tx.timing.submitted : null
+        );
+        const inBlockData = validTxs.map(tx => 
+            tx.timing.inBlock ? tx.timing.inBlock - tx.timing.submitted : null
+        );
+        const finalizedData = validTxs.map(tx => 
+            tx.timing.finalized ? tx.timing.finalized - tx.timing.submitted : null
+        );
+
+        console.log('Chart data:', { 
+            labels, 
+            ready: readyData.filter(x => x !== null).length + ' values',
+            inBlock: inBlockData.filter(x => x !== null).length + ' values',
+            finalized: finalizedData.filter(x => x !== null).length + ' values'
+        });
+
+        this.chart.data.labels = labels;
+        this.chart.data.datasets[0].data = readyData;
+        this.chart.data.datasets[1].data = inBlockData;
+        this.chart.data.datasets[2].data = finalizedData;
+        this.chart.update();
+        
+        console.log('✅ Chart updated');
+    }
+
+    updateTransactionStats(stats) {
+        console.log('📈 updateTransactionStats called with:', stats);
+        
+        if (!stats) {
+            console.log('No stats available, hiding stats section');
+            this.elements.statsContent.classList.add('hidden');
+            return;
+        }
+
+        this.elements.statsContent.classList.remove('hidden');
+
+        // Helper to format stats value
+        const formatStat = (value, count) => {
+            if (count === 0) return '-';
+            return `${Math.round(value)}ms`;
+        };
+
+        // Update Ready stats
+        this.elements.minReady.textContent = formatStat(stats.ready.min, stats.ready.count);
+        this.elements.maxReady.textContent = formatStat(stats.ready.max, stats.ready.count);
+        this.elements.avgReady.textContent = formatStat(stats.ready.avg, stats.ready.count);
+
+        // Update InBlock stats
+        this.elements.minInBlock.textContent = formatStat(stats.inBlock.min, stats.inBlock.count);
+        this.elements.maxInBlock.textContent = formatStat(stats.inBlock.max, stats.inBlock.count);
+        this.elements.avgInBlock.textContent = formatStat(stats.inBlock.avg, stats.inBlock.count);
+
+        // Update Finalized stats
+        this.elements.minFinalized.textContent = formatStat(stats.finalized.min, stats.finalized.count);
+        this.elements.maxFinalized.textContent = formatStat(stats.finalized.max, stats.finalized.count);
+        this.elements.avgFinalized.textContent = formatStat(stats.finalized.avg, stats.finalized.count);
+        
+        console.log('✅ Stats updated:', {
+            ready: stats.ready.count,
+            inBlock: stats.inBlock.count,
+            finalized: stats.finalized.count
+        });
     }
 
     // Block UI

@@ -26,6 +26,11 @@ export class App {
     init() {
         this.setupEventListeners();
         this.uiManager.updateGameStats(this.gameManager.gameStats);
+        
+        // Initialize chart after a short delay to ensure Chart.js is loaded
+        setTimeout(() => {
+            this.uiManager.initializeChart();
+        }, 100);
     }
 
     setupEventListeners() {
@@ -56,6 +61,8 @@ export class App {
             this.transactionManager.clearHistory();
             this.uiManager.renderTransactionHistory([]);
             this.uiManager.updatePendingCount(0);
+            this.uiManager.updateChart([]);
+            this.uiManager.updateTransactionStats(null);
         });
 
         // Timeout
@@ -157,6 +164,9 @@ export class App {
             const balance = await this.accountManager.getBalance();
             this.uiManager.updateBalance(balance);
 
+            // Auto-mint if balance is 0
+            await this.checkAndMintFunds(balance);
+
             // Check for active game and auto-join
             await this.checkAndJoinActiveGame();
 
@@ -220,6 +230,48 @@ export class App {
         } catch (error) {
             console.error('Cancel matchmaking error:', error);
             alert(`Failed to cancel matchmaking: ${error.message}`);
+        }
+    }
+
+    async checkAndMintFunds(balance) {
+        if (!this.chainManager.isConnected() || !this.accountManager.isConnected()) {
+            return;
+        }
+
+        try {
+            // Parse balance string (e.g., "0.0000 UNIT" -> 0)
+            const balanceValue = parseFloat(balance);
+            
+            if (isNaN(balanceValue) || balanceValue === 0) {
+                console.log('💰 Balance is 0, minting funds...');
+                
+                const txData = this.transactionManager.createTransaction(
+                    'mint_funds',
+                    this.accountManager.getAddress(),
+                    'Tic-Tac-Toe Pallet',
+                    'Mint 1000 UNIT'
+                );
+
+                // Mint 1000 UNIT (convert to smallest unit based on chain decimals)
+                const decimals = this.chainManager.api.registry.chainDecimals[0] || 12;
+                const amount = 1000 * Math.pow(10, decimals);
+                
+                const tx = this.chainManager.api.tx.ticTacToe.mintFunds(this.accountManager.currentAccount.address, amount);
+                
+                const unsub = await this.accountManager.sendUnsigned(tx, async (result) => {
+                    await this.handleTransactionStatus(result, txData, unsub);
+                });
+
+                // // Wait a moment and refresh balance
+                // setTimeout(async () => {
+                //     const newBalance = await this.accountManager.getBalance();
+                //     this.uiManager.updateBalance(newBalance);
+                //     console.log('💰 New balance:', newBalance);
+                // }, 2000);
+            }
+        } catch (error) {
+            console.error('Error checking/minting funds:', error);
+            // Don't alert, just log the error
         }
     }
 
@@ -306,7 +358,7 @@ export class App {
         this.uiManager.hideGameMessage();
         this.uiManager.hideMatchmakingWaiting();
         this.uiManager.hideTimeoutSection();
-        this.uiManager.updateBoard(Array(9).fill(null));
+        this.uiManager.updateBoardFromState({ board: Array(9).fill(null) });
     }
 
     startTimeoutTimer() {
@@ -468,7 +520,6 @@ export class App {
             if (!finalGameInfo.gameActive) {
                 console.error('WARNING: Game is not active after setup!');
                 console.error('Final state:', finalGameInfo);
-                alert('Game setup completed but game is not active. Please try again.');
             } else if (finalGameInfo.currentGameId === null || finalGameInfo.currentGameId === undefined) {
                 console.error('WARNING: No game ID set after setup!');
                 console.error('Final state:', finalGameInfo);
@@ -542,8 +593,6 @@ export class App {
                     console.error('Error reading events:', err);
                 }
             }
-
-            unsub();
         }
 
         if (status.isFinalized) {
@@ -551,6 +600,9 @@ export class App {
             txData.statusText = 'Finalized ✓';
             txData.finalizedBlockHash = status.asFinalized.toHex();
             this.updateTransactionUI(txData);
+            
+            // Unsubscribe after finalization
+            unsub();
         }
     }
 
@@ -570,6 +622,11 @@ export class App {
         
         this.uiManager.renderTransactionHistory(history);
         this.uiManager.updatePendingCount(this.transactionManager.getPendingCount());
+        
+        // Update chart and stats
+        this.uiManager.updateChart(history);
+        const stats = this.transactionManager.calculateStats();
+        this.uiManager.updateTransactionStats(stats);
     }
 }
 

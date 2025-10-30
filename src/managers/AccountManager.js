@@ -1,7 +1,6 @@
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
 import { Keyring } from '@polkadot/keyring';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
-import { formatBalance } from '@polkadot/util';
 
 export class AccountManager {
     constructor(chainManager) {
@@ -77,10 +76,20 @@ export class AccountManager {
 
         const { data: balance } = await this.chainManager.api.query.system.account(this.currentAccount.address);
         
+        // Get chain decimals
+        const decimals = this.chainManager.api.registry.chainDecimals[0] || 12;
+        const divisor = Math.pow(10, decimals);
+        
+        // Convert to units with 4 decimal places
+        const formatToUnits = (value) => {
+            const units = parseFloat(value.toString()) / divisor;
+            return units.toFixed(4);
+        };
+        
         return {
-            free: formatBalance(balance.free, { withSi: true, forceUnit: '-' }),
-            reserved: formatBalance(balance.reserved, { withSi: true, forceUnit: '-' }),
-            frozen: formatBalance(balance.frozen, { withSi: true, forceUnit: '-' })
+            free: formatToUnits(balance.free),
+            reserved: formatToUnits(balance.reserved),
+            frozen: formatToUnits(balance.frozen)
         };
     }
 
@@ -117,6 +126,17 @@ export class AccountManager {
                 callback
             );
         }
+    }
+
+    /**
+     * Send an unsigned transaction to the chain.
+     * @param {*} tx - The extrinsic/transaction to send.
+     * @param {*} callback - Optional callback for status updates.
+     * @returns {Promise<*>} Unsubscribe function from Polkadot API
+     */
+    async sendUnsigned(tx, callback) {
+        // Signer is omitted to send as unsigned
+        return await tx.send(callback);
     }
 
     disconnect() {

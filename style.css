@@ -1525,7 +1525,7 @@ input[type="number"]:focus {
 .metric-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #2d3748;
+    color: #d4e4d4;
     margin: 0;
     padding-bottom: 4px;
     border-bottom: 2px solid #e2e8f0;
@@ -1545,13 +1545,13 @@ input[type="number"]:focus {
 
 .metric-label {
     font-size: 0.7rem;
-    color: #718096;
+    color: #a8c8a8;
     font-weight: 500;
 }
 
 .metric-value {
     font-size: 0.8rem;
-    color: #2d3748;
+    color: #d4e4d4;
     font-weight: 600;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
