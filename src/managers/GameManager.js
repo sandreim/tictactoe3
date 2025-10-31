@@ -122,6 +122,7 @@ export class GameManager {
 
     resetGame() {
         this.gameState.reset();
+        this.eventsSubscribed = false;
     }
 
     subscribeToGameEvents(callback) {

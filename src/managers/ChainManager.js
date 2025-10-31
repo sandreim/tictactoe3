@@ -117,7 +117,7 @@ export class ChainManager {
         };
     }
 
-    subscribeToBlocks(callback) {
+    async subscribeToBlocks(callback) {
         if (!this.api) {
             return;
         }
@@ -125,7 +125,7 @@ export class ChainManager {
         this.onBlockCallback = callback;
 
         // Subscribe to new blocks (best blocks)
-        this.unsubscribeBlocks = this.api.rpc.chain.subscribeNewHeads((header) => {
+        this.unsubscribeBlocks = await this.api.rpc.chain.subscribeNewHeads((header) => {
             this.updateBlockInfo(header);
             if (callback) {
                 callback();
@@ -133,7 +133,7 @@ export class ChainManager {
         });
 
         // Get finalized blocks
-        this.unsubscribeFinalizedBlocks = this.api.rpc.chain.subscribeFinalizedHeads((header) => {
+        this.unsubscribeFinalizedBlocks = await this.api.rpc.chain.subscribeFinalizedHeads((header) => {
             this.updateFinalizedBlockInfo(header);
         });
     }

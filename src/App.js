@@ -4,6 +4,7 @@ import { GameManager } from './managers/GameManager.js';
 import { MatchmakingManager } from './managers/MatchmakingManager.js';
 import { TransactionManager } from './managers/TransactionManager.js';
 import { UIManager } from './managers/UIManager.js';
+import { SoundManager } from './managers/SoundManager.js';
 
 export class App {
     constructor() {
@@ -14,6 +15,7 @@ export class App {
         this.matchmakingManager = new MatchmakingManager(this.chainManager, this.accountManager);
         this.transactionManager = new TransactionManager();
         this.uiManager = new UIManager(this.gameManager);
+        this.soundManager = new SoundManager();
 
         // Timeout tracking
         this.timeoutTimer = null;
@@ -31,6 +33,11 @@ export class App {
         setTimeout(() => {
             this.uiManager.initializeChart();
         }, 100);
+        
+        // Auto-connect to chain on page load
+        setTimeout(() => {
+            this.handleConnect();
+        }, 500);
     }
 
     setupEventListeners() {
@@ -50,7 +57,10 @@ export class App {
         // Game
         this.uiManager.elements.resetGameBtn.addEventListener('click', () => this.handleResetGame());
         document.querySelectorAll('.cell').forEach(cell => {
-            cell.addEventListener('click', (e) => {
+            cell.addEventListener('click', async (e) => {
+                // Resume audio context on first user interaction
+                await this.soundManager.resume();
+                
                 const cellIndex = parseInt(e.target.getAttribute('data-cell'));
                 this.handleCellClick(cellIndex);
             });
@@ -67,6 +77,9 @@ export class App {
 
         // Timeout
         this.uiManager.elements.claimTimeoutBtn.addEventListener('click', () => this.handleClaimTimeout());
+        
+        // Sound toggle
+        document.getElementById('toggleSoundBtn').addEventListener('click', () => this.handleToggleSound());
     }
 
     async handleConnect() {
@@ -82,6 +95,12 @@ export class App {
             connectBtn.textContent = 'Connecting...';
             connectBtn.disabled = true;
 
+            // Disconnect from previous chain if connected
+            if (this.chainManager.isConnected()) {
+                console.log('Disconnecting from previous chain...');
+                await this.handleDisconnect();
+            }
+
             await this.chainManager.connect(rpcUrl);
             const chainInfo = await this.chainManager.getChainInfo();
 
@@ -90,7 +109,7 @@ export class App {
             this.uiManager.showBlockBanner();
 
             // Subscribe to blocks
-            this.chainManager.subscribeToBlocks(async () => {
+            await this.chainManager.subscribeToBlocks(async () => {
                 // Update account info on each block
                 if (this.accountManager.isConnected()) {
                     try {
@@ -109,6 +128,10 @@ export class App {
 
             connectBtn.textContent = 'Connected';
             connectBtn.disabled = false;
+            
+            // Enable wallet connection after chain is connected
+            this.uiManager.elements.connectWalletBtn.disabled = false;
+            this.uiManager.elements.connectWalletBtn.classList.remove('disabled');
 
         } catch (error) {
             console.error('Connection error:', error);
@@ -116,6 +139,57 @@ export class App {
             this.uiManager.updateConnectionStatus(false, 'Disconnected');
             connectBtn.textContent = 'Connect';
             connectBtn.disabled = false;
+        }
+    }
+
+    async handleDisconnect() {
+        console.log('🔌 Disconnecting and resetting state...');
+        
+        try {
+            // Stop timeout timer
+            this.stopTimeoutTimer();
+            
+            // Stop block subscriptions
+            this.chainManager.stopBlockSubscription();
+            
+            // Stop account balance updates
+            this.accountManager.stopBalanceUpdates();
+            
+            // Reset game state
+            this.gameManager.resetGame();
+            
+            // Reset matchmaking
+            this.matchmakingManager.setInQueue(false);
+            
+            // Clear transaction history
+            this.transactionManager.clearHistory();
+            
+            // Disconnect from chain
+            if (this.chainManager.api) {
+                await this.chainManager.api.disconnect();
+                this.chainManager.api = null;
+            }
+            
+            // Reset UI
+            this.uiManager.hideGameBoard();
+            this.uiManager.hideGameMessage();
+            this.uiManager.hideMatchmakingWaiting();
+            this.uiManager.hideTimeoutSection();
+            this.uiManager.hideAccountInfo();
+            this.uiManager.hideGameWaitingOverlay();
+            this.uiManager.renderTransactionHistory([]);
+            this.uiManager.updatePendingCount(0);
+            this.uiManager.updateChart([]);
+            this.uiManager.updateTransactionStats(null);
+            
+            // Disable wallet button
+            this.uiManager.elements.connectWalletBtn.disabled = true;
+            this.uiManager.elements.connectWalletBtn.classList.add('disabled');
+            
+            console.log('✅ Disconnected and reset complete');
+            
+        } catch (error) {
+            console.error('Error during disconnect:', error);
         }
     }
 
@@ -187,6 +261,9 @@ export class App {
         try {
             playBtn.disabled = true;
             playBtn.textContent = 'JOINING QUEUE...';
+
+            // 🎵 Play matchmaking sound
+            this.soundManager.playMatchmakingSound();
 
             const tx = await this.matchmakingManager.joinQueue();
             const txData = this.transactionManager.createTransaction(
@@ -328,6 +405,12 @@ export class App {
         }
 
         try {
+            // Show waiting overlay - disable board interaction
+            this.uiManager.showGameWaitingOverlay();
+            
+            // 🎵 Play move sound
+            this.soundManager.playMoveSound();
+            
             const tx = await this.gameManager.makeMove(cellIndex);
             const txData = this.transactionManager.createTransaction(
                 'game_move',
@@ -339,14 +422,21 @@ export class App {
             const unsub = await this.accountManager.signAndSend(tx, async (result) => {
                 await this.handleTransactionStatus(result, txData, unsub);
                 
-                // When transaction is in block, start timeout for opponent's turn
+                // When transaction is in block, hide overlay
+                // Timer will be managed by moveMade event handler based on actual game state
                 if (result.status.isInBlock) {
-                    this.startTimeoutTimer();
+                    this.uiManager.hideGameWaitingOverlay();
+                }
+                
+                // Also hide overlay on finalized (belt and suspenders)
+                if (result.status.isFinalized) {
+                    this.uiManager.hideGameWaitingOverlay();
                 }
             });
 
         } catch (error) {
             console.error('Move error:', error);
+            this.uiManager.hideGameWaitingOverlay(); // Hide overlay on error
             alert(`Failed to make move: ${error.message}`);
         }
     }
@@ -374,6 +464,11 @@ export class App {
             const remaining = Math.max(0, this.TIMEOUT_SECONDS - elapsed);
             
             this.uiManager.updateTimeoutCountdown(remaining);
+            
+            // 🎵 Play tick sound for last 10 seconds
+            if (remaining <= 10 && remaining > 0) {
+                this.soundManager.playTimeoutWarning();
+            }
             
             if (remaining === 0) {
                 // Timer expired, show claim button and stop counting
@@ -446,14 +541,17 @@ export class App {
                     this.uiManager.hideMatchmakingWaiting();
                     this.matchmakingManager.setInQueue(false);
                     
+                    // 🎵 Play game start sound
+                    this.soundManager.playGameStartSound();
+                    
                     // Show the game UI
                     const gameState = this.gameManager.gameState;
                     if (gameState.gameId !== null) {
                         this.uiManager.showGameBoard();
                         this.uiManager.updateGameInfo(gameState.gameId, gameState.playerX, gameState.playerO);
                         
-                        // Start timeout timer if it's opponent's turn
-                        if (!gameState.isMyTurn) {
+                        // Start timeout timer if it's opponent's turn AND game hasn't ended
+                        if (!gameState.isMyTurn && !gameState.isEnded) {
                             this.startTimeoutTimer();
                         }
                     }
@@ -463,11 +561,21 @@ export class App {
             case 'moveMade':
                 // Update timeout timer based on whose turn it is
                 const gameState = this.gameManager.gameState;
+                
+                // Don't start timer if game has ended
+                if (gameState.isEnded) {
+                    console.log('Game has ended, not starting timeout timer');
+                    this.stopTimeoutTimer();
+                    break;
+                }
+                
                 if (gameState.isMyTurn) {
                     console.log('It\'s my turn, stopping timeout');
                     this.stopTimeoutTimer();
                 } else {
                     console.log('It\'s opponent\'s turn, starting timeout');
+                    // 🎵 Play opponent turn sound
+                    this.soundManager.playOpponentTurnSound();
                     this.startTimeoutTimer();
                 }
                 break;
@@ -477,6 +585,14 @@ export class App {
                 
                 // Show end message
                 const endResult = this.gameManager.handleGameEnd(data.state);
+                
+                // 🎵 Play win or lose sound based on result
+                if (endResult.winnerType === 'winner') {
+                    this.soundManager.playWinSound();
+                } else if (endResult.winnerType === 'loser') {
+                    this.soundManager.playLoseSound();
+                }
+                
                 this.uiManager.showGameEndMessage(endResult.message, endResult.winnerType);
                 this.uiManager.updateGameStats(endResult.stats);
                 break;
@@ -508,7 +624,8 @@ export class App {
                 const gameState = this.gameManager.gameState;
                 if (gameState.isMyTurn) {
                     this.stopTimeoutTimer();
-                } else {
+                } else if (!gameState.isEnded) {
+                    // Only start timer if game hasn't ended
                     this.startTimeoutTimer();
                 }
             }
@@ -627,6 +744,22 @@ export class App {
         this.uiManager.updateChart(history);
         const stats = this.transactionManager.calculateStats();
         this.uiManager.updateTransactionStats(stats);
+    }
+
+    handleToggleSound() {
+        const isEnabled = this.soundManager.toggleEnabled();
+        const soundOnIcon = document.getElementById('soundOnIcon');
+        const soundOffIcon = document.getElementById('soundOffIcon');
+        
+        if (isEnabled) {
+            soundOnIcon.style.display = 'block';
+            soundOffIcon.style.display = 'none';
+            console.log('🔊 Sound enabled');
+        } else {
+            soundOnIcon.style.display = 'none';
+            soundOffIcon.style.display = 'block';
+            console.log('🔇 Sound disabled');
+        }
     }
 }
 

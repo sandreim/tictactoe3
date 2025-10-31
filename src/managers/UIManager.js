@@ -26,6 +26,12 @@ export class UIManager {
         
         this.updatePlayerTurnFromState(gameState);
         
+        // Hide timeout section if game has ended
+        if (gameState.isEnded) {
+            console.log('⏱️ Game ended, hiding timeout section');
+            this.hideTimeoutSection();
+        }
+        
         console.log('✅ UI update complete');
     }
     
@@ -143,6 +149,9 @@ export class UIManager {
             timeoutTimer: document.getElementById('timeoutTimer'),
             timeoutCountdown: document.getElementById('timeoutCountdown'),
             claimTimeoutBtn: document.getElementById('claimTimeoutBtn'),
+            
+            // Waiting overlay
+            gameWaitingOverlay: document.getElementById('gameWaitingOverlay'),
 
             // Transactions
             transactionHistory: document.getElementById('transactionHistory'),
@@ -298,6 +307,19 @@ export class UIManager {
 
     hideClaimTimeoutBtn() {
         this.elements.claimTimeoutBtn.classList.add('hidden');
+    }
+
+    // Waiting overlay
+    showGameWaitingOverlay() {
+        if (this.elements.gameWaitingOverlay) {
+            this.elements.gameWaitingOverlay.classList.remove('hidden');
+        }
+    }
+
+    hideGameWaitingOverlay() {
+        if (this.elements.gameWaitingOverlay) {
+            this.elements.gameWaitingOverlay.classList.add('hidden');
+        }
     }
 
     // Transaction UI
