@@ -198,14 +198,10 @@ export class App {
             const account = await this.accountManager.connectWallet();
             this.uiManager.updateAccountInfo(account.address, 'extension');
 
-            // Start balance updates
+            // Start balance updates and get initial balance
             this.accountManager.startBalanceUpdates((balance) => {
                 this.uiManager.updateBalance(balance);
             });
-
-            // Get initial balance
-            const balance = await this.accountManager.getBalance();
-            this.uiManager.updateBalance(balance);
 
             // Check for active game and auto-join
             await this.checkAndJoinActiveGame();
@@ -234,11 +230,8 @@ export class App {
                 this.uiManager.updateBalance(balance);
             });
 
-            // Get initial balance
+            // Get initial balance for auto-mint check
             const balance = await this.accountManager.getBalance();
-            this.uiManager.updateBalance(balance);
-
-            // Auto-mint if balance is 0
             await this.checkAndMintFunds(balance);
 
             // Check for active game and auto-join
@@ -338,13 +331,6 @@ export class App {
                 const unsub = await this.accountManager.sendUnsigned(tx, async (result) => {
                     await this.handleTransactionStatus(result, txData, unsub);
                 });
-
-                // // Wait a moment and refresh balance
-                // setTimeout(async () => {
-                //     const newBalance = await this.accountManager.getBalance();
-                //     this.uiManager.updateBalance(newBalance);
-                //     console.log('💰 New balance:', newBalance);
-                // }, 2000);
             }
         } catch (error) {
             console.error('Error checking/minting funds:', error);
@@ -422,14 +408,9 @@ export class App {
             const unsub = await this.accountManager.signAndSend(tx, async (result) => {
                 await this.handleTransactionStatus(result, txData, unsub);
                 
-                // When transaction is in block, hide overlay
+                // Hide overlay when transaction is in block
                 // Timer will be managed by moveMade event handler based on actual game state
-                if (result.status.isInBlock) {
-                    this.uiManager.hideGameWaitingOverlay();
-                }
-                
-                // Also hide overlay on finalized (belt and suspenders)
-                if (result.status.isFinalized) {
+                if (result.status.isInBlock || result.status.isFinalized) {
                     this.uiManager.hideGameWaitingOverlay();
                 }
             });
@@ -581,7 +562,7 @@ export class App {
                 break;
 
             case 'gameEnded':
-                this.stopTimeoutTimer();
+                // Timeout will be stopped by UIManager.updateGameUI when it sees isEnded = true
                 
                 // Show end message
                 const endResult = this.gameManager.handleGameEnd(data.state);
