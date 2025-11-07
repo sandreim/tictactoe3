@@ -20,7 +20,7 @@ export class App {
         // Timeout tracking
         this.timeoutTimer = null;
         this.timeoutStartTime = null;
-        this.TIMEOUT_SECONDS = 60;
+        this.TIMEOUT_SECONDS = 30;
 
         this.init();
     }
@@ -61,6 +61,11 @@ export class App {
                 // Resume audio context on first user interaction
                 await this.soundManager.resume();
                 
+                // Start background music on first interaction if not already playing
+                if (!this.soundManager.isMusicPlaying()) {
+                    this.soundManager.startBackgroundMusic();
+                }
+                
                 const cellIndex = parseInt(e.target.getAttribute('data-cell'));
                 this.handleCellClick(cellIndex);
             });
@@ -80,6 +85,9 @@ export class App {
         
         // Sound toggle
         document.getElementById('toggleSoundBtn').addEventListener('click', () => this.handleToggleSound());
+        
+        // Music toggle
+        document.getElementById('toggleMusicBtn').addEventListener('click', () => this.handleToggleMusic());
     }
 
     async handleConnect() {
@@ -109,7 +117,7 @@ export class App {
             this.uiManager.showBlockBanner();
 
             // Subscribe to blocks
-            await this.chainManager.subscribeToBlocks(async () => {
+            await this.chainManager.subscribeToBlocks(async (forked) => {
                 // Update account info on each block
                 if (this.accountManager.isConnected()) {
                     try {
@@ -119,6 +127,19 @@ export class App {
                         console.error('Error updating balance:', error);
                     }
                 }
+
+                if (forked) {
+                    // Reload the entire game state from chain when a fork is detected
+                    console.warn('Reloading game state due to detected fork...');
+                    
+                    await this.handleResetGame();
+                    // Call function to check and re-join active game, which reloads state
+                    await this.checkAndJoinActiveGame();
+
+                    // Optionally, update UI or notify user about the fork
+                    this.uiManager.showGameMessage('⚠️ Chain revert detected. Reloading game...');
+
+                }
             });
 
             // Subscribe to game events
@@ -126,7 +147,7 @@ export class App {
                 await this.handleGameEvent(eventType, data);
             });
 
-            connectBtn.textContent = 'Connected';
+            connectBtn.textContent = 'Reconnect';
             connectBtn.disabled = false;
             
             // Enable wallet connection after chain is connected
@@ -203,6 +224,10 @@ export class App {
                 this.uiManager.updateBalance(balance);
             });
 
+            // Get initial balance for auto-mint check
+            const balance = await this.accountManager.getBalance();
+            await this.checkAndMintFunds(balance);
+            
             // Check for active game and auto-join
             await this.checkAndJoinActiveGame();
 
@@ -257,6 +282,7 @@ export class App {
 
             // 🎵 Play matchmaking sound
             this.soundManager.playMatchmakingSound();
+            
 
             const tx = await this.matchmakingManager.joinQueue();
             const txData = this.transactionManager.createTransaction(
@@ -268,18 +294,32 @@ export class App {
 
             const unsub = await this.accountManager.signAndSend(tx, async (result) => {
                 await this.handleTransactionStatus(result, txData, unsub, (eventData) => {
+                   console.log('Event data:', eventData);
+                   console.log('Event data type:', eventData.type);
+                   console.log('Event data reason:', eventData.reason);
+                   console.log('Event data status:', eventData.status);
+                   console.log('Event data status text:', eventData.statusText);
+                   console.log('Event data block hash:', eventData.blockHash);
+                   console.log('Event data finalized block hash:', eventData.finalizedBlockHash);
+                   console.log('Event data timing:', eventData.timing);
+                   console.log('Event data txData:', eventData.txData);
                     // Check for PlayerJoinedQueue or GameCreated events
                     if (eventData.type === 'PlayerJoinedQueue') {
                         this.uiManager.showMatchmakingWaiting();
                     } else if (eventData.type === 'GameCreated') {
                         this.uiManager.hideMatchmakingWaiting();
                         this.matchmakingManager.setInQueue(false);
+                    } else if (eventData.type === 'ExtrinsicFailed') {
+                        console.error('Extrinsic failed:', eventData.reason);
+                        // await this.handleResetGame();                    // Call function to check and re-join active game, which reloads state
+                        this.checkAndJoinActiveGame();
                     }
                 });
             });
 
         } catch (error) {
             console.error('Matchmaking error:', error);
+            this.uiManager.hideMatchmakingWaiting();
             alert(`Failed to join matchmaking: ${error.message}`);
             playBtn.textContent = 'START GAME';
             playBtn.disabled = false;
@@ -344,17 +384,27 @@ export class App {
         }
 
         try {
+            // Check if player is in matchmaking queue
+            const isInQueue = await this.matchmakingManager.isPlayerInQueue();
+            if (isInQueue) {
+                console.log('Player is in matchmaking queue, showing waiting UI');
+                this.uiManager.showMatchmakingWaiting();
+                return;
+            }
+
             console.log('Checking for active game...');
             const game = await this.gameManager.getPlayerGame();
             console.log('Game found:', game);
             
             if (!game) {
                 console.log('No active game found');
+            
                 return;
             }
 
             // Load the active game
-            const [gameId, gameData] = game;
+            const [gameId, gameData] = game;        
+
             console.log(`Auto-loading active game #${gameId}`, gameData);
             await this.setupAndShowGame(gameId, gameData.player_x.toString(), gameData.player_o.toString(), gameData);
             
@@ -422,7 +472,7 @@ export class App {
         }
     }
 
-    handleResetGame() {
+    async handleResetGame() {
         this.stopTimeoutTimer();
         this.gameManager.resetGame();
         this.uiManager.hideGameBoard();
@@ -430,6 +480,13 @@ export class App {
         this.uiManager.hideMatchmakingWaiting();
         this.uiManager.hideTimeoutSection();
         this.uiManager.updateBoardFromState({ board: Array(9).fill(null) });
+        // Check if player is in matchmaking queue
+        const isInQueue = await this.matchmakingManager.isPlayerInQueue();
+        if (isInQueue) {
+            console.log('Player is in matchmaking queue, showing waiting UI');
+            this.uiManager.showMatchmakingWaiting();
+            return;
+        }
     }
 
     startTimeoutTimer() {
@@ -601,6 +658,7 @@ export class App {
                 const endResult = this.gameManager.handleGameEnd(result.state);
                 this.uiManager.showGameEndMessage(endResult.message, endResult.winnerType);
             } else {
+                this.uiManager.hideGameMessage();
                 // Start/stop timeout timer based on whose turn it is
                 const gameState = this.gameManager.gameState;
                 if (gameState.isMyTurn) {
@@ -642,6 +700,10 @@ export class App {
             txData.status = 'error';
             txData.statusText = 'Invalid';
             this.updateTransactionUI(txData);
+            
+            // Hide waiting overlay if transaction is invalid
+            this.uiManager.hideGameWaitingOverlay();
+            
             return;
         }
 
@@ -670,26 +732,71 @@ export class App {
                 } else {
                     errorInfo = dispatchError.toString();
                 }
+                
+                // Hide waiting overlay on dispatch error
+                this.uiManager.hideGameWaitingOverlay();
+                
                 alert(`Transaction failed: ${errorInfo}`);
                 unsub();
                 return;
             }
 
-            // Handle events if callback provided
-            if (eventCallback) {
-                try {
-                    const events = await this.chainManager.api.query.system.events.at(status.asInBlock);
-                    for (const { event } of events) {
+            // Check for ExtrinsicFailed event
+            try {
+                const events = await this.chainManager.api.query.system.events.at(status.asInBlock);
+                let extrinsicFailed = false;
+                let failureReason = '';
+                
+                for (const { event } of events) {
+                    // Check for system.ExtrinsicFailed
+                    if (this.chainManager.api.events.system.ExtrinsicFailed.is(event)) {
+                        extrinsicFailed = true;
+                        const [dispatchError, dispatchInfo] = event.data;
+                        
+                        if (dispatchError.isModule) {
+                            const decoded = this.chainManager.api.registry.findMetaError(dispatchError.asModule);
+                            failureReason = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
+                        } else {
+                            failureReason = dispatchError.toString();
+                        }
+                                            }
+                   
+
+                    // Handle custom events if callback provided
+                    if (eventCallback && !extrinsicFailed) {
                         if (this.chainManager.api.events.ticTacToe.PlayerJoinedQueue.is(event)) {
                             eventCallback({ type: 'PlayerJoinedQueue' });
                         }
                         if (this.chainManager.api.events.ticTacToe.GameCreated.is(event)) {
                             eventCallback({ type: 'GameCreated' });
                         }
+                    } else if (eventCallback && extrinsicFailed) {
+                        console.error('SENDING Extrinsic failed:', failureReason);
+                        eventCallback({ type: 'ExtrinsicFailed', reason: failureReason });
                     }
-                } catch (err) {
-                    console.error('Error reading events:', err);
+
+                    // If extrinsic failed, show error and cleanup
+                    if (extrinsicFailed) {
+                        txData.status = 'error';
+                        txData.statusText = 'Failed';
+                        this.updateTransactionUI(txData);
+                        
+                        // Hide waiting overlay
+                        this.uiManager.hideGameWaitingOverlay();
+                        
+                        // Show error to user after 50ms delay
+                        setTimeout(() => {
+                            this.uiManager.showGameMessage(failureReason || 'Transaction failed on chain');
+                        }, 50);
+                        
+                        unsub();
+
+                    }
                 }
+                
+
+            } catch (err) {
+                console.error('Error reading events:', err);
             }
         }
 
@@ -740,6 +847,22 @@ export class App {
             soundOnIcon.style.display = 'none';
             soundOffIcon.style.display = 'block';
             console.log('🔇 Sound disabled');
+        }
+    }
+
+    handleToggleMusic() {
+        const isEnabled = this.soundManager.toggleBackgroundMusic();
+        const musicOnIcon = document.getElementById('musicOnIcon');
+        const musicOffIcon = document.getElementById('musicOffIcon');
+        
+        if (isEnabled) {
+            musicOnIcon.style.display = 'block';
+            musicOffIcon.style.display = 'none';
+            console.log('🎵 Background music enabled');
+        } else {
+            musicOnIcon.style.display = 'none';
+            musicOffIcon.style.display = 'block';
+            console.log('🎵 Background music disabled');
         }
     }
 }

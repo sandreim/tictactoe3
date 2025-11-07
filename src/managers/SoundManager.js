@@ -2,7 +2,9 @@ export class SoundManager {
     constructor() {
         this.audioContext = null;
         this.enabled = true;
-        this.volume = 0.3;
+        this.volume = 0.5;
+        this.musicEnabled = true;
+        this.backgroundMusic = null;
         this.initAudioContext();
     }
 
@@ -258,15 +260,198 @@ export class SoundManager {
 
     setVolume(volume) {
         this.volume = Math.max(0, Math.min(1, volume));
+        
+        // Update background music volume if playing
+        if (this.backgroundMusic && this.backgroundMusic.gainNode) {
+            this.backgroundMusic.gainNode.gain.setValueAtTime(this.volume * 0.15, this.audioContext.currentTime);
+        }
     }
 
     toggleEnabled() {
         this.enabled = !this.enabled;
+        
+        // Stop background music if disabling all sounds
+        if (!this.enabled && this.backgroundMusic) {
+            this.stopBackgroundMusic();
+        }
+        
         return this.enabled;
     }
 
     isEnabled() {
         return this.enabled;
+    }
+
+    /**
+     * Start sinister background music
+     */
+    startBackgroundMusic() {
+        if (!this.musicEnabled || !this.audioContext || this.backgroundMusic) {
+            return;
+        }
+
+        console.log('🎵 Starting background music...');
+
+        try {
+            // Create multiple oscillators for a complex, sinister drone
+            const osc1 = this.audioContext.createOscillator();
+            const osc2 = this.audioContext.createOscillator();
+            const osc3 = this.audioContext.createOscillator();
+            const osc4 = this.audioContext.createOscillator();
+            
+            // Create noise for texture
+            const bufferSize = this.audioContext.sampleRate * 2;
+            const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+            const noiseData = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                noiseData[i] = Math.random() * 2 - 1;
+            }
+            const noiseSource = this.audioContext.createBufferSource();
+            noiseSource.buffer = noiseBuffer;
+            noiseSource.loop = true;
+            
+            // Filters for shaping the sound
+            const filter1 = this.audioContext.createBiquadFilter();
+            const filter2 = this.audioContext.createBiquadFilter();
+            const noiseFilter = this.audioContext.createBiquadFilter();
+            
+            // Gain nodes for mixing
+            const droneGain = this.audioContext.createGain();
+            const noiseGain = this.audioContext.createGain();
+            const masterGain = this.audioContext.createGain();
+            
+            // Configure oscillators - Deep, dissonant drones
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(55, this.audioContext.currentTime); // Deep bass A
+            
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(58.27, this.audioContext.currentTime); // Slightly detuned for dissonance
+            
+            osc3.type = 'triangle';
+            osc3.frequency.setValueAtTime(110, this.audioContext.currentTime); // One octave up
+            
+            osc4.type = 'sawtooth';
+            osc4.frequency.setValueAtTime(73.42, this.audioContext.currentTime); // Tritone - the devil's interval
+            
+            // Configure filters - Dark, ominous tone
+            filter1.type = 'lowpass';
+            filter1.frequency.setValueAtTime(200, this.audioContext.currentTime);
+            filter1.Q.setValueAtTime(5, this.audioContext.currentTime);
+            
+            filter2.type = 'bandpass';
+            filter2.frequency.setValueAtTime(150, this.audioContext.currentTime);
+            filter2.Q.setValueAtTime(8, this.audioContext.currentTime);
+            
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(100, this.audioContext.currentTime);
+            noiseFilter.Q.setValueAtTime(20, this.audioContext.currentTime);
+            
+            // Configure gains - Very subtle background
+            droneGain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+            noiseGain.gain.setValueAtTime(0.05, this.audioContext.currentTime);
+            masterGain.gain.setValueAtTime(this.volume * 0.15, this.audioContext.currentTime);
+            
+            // Connect the audio graph
+            osc1.connect(filter1);
+            osc2.connect(filter1);
+            osc3.connect(filter2);
+            osc4.connect(filter2);
+            
+            filter1.connect(droneGain);
+            filter2.connect(droneGain);
+            droneGain.connect(masterGain);
+            
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(masterGain);
+            
+            masterGain.connect(this.audioContext.destination);
+            
+            // Add slow modulation for eerie effect
+            const lfo = this.audioContext.createOscillator();
+            const lfoGain = this.audioContext.createGain();
+            lfo.frequency.setValueAtTime(0.05, this.audioContext.currentTime); // Very slow
+            lfoGain.gain.setValueAtTime(2, this.audioContext.currentTime);
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter1.frequency);
+            lfoGain.connect(filter2.frequency);
+            
+            // Start all sources
+            osc1.start();
+            osc2.start();
+            osc3.start();
+            osc4.start();
+            noiseSource.start();
+            lfo.start();
+            
+            // Store references for cleanup
+            this.backgroundMusic = {
+                oscillators: [osc1, osc2, osc3, osc4],
+                noiseSource,
+                lfo,
+                gainNode: masterGain
+            };
+            
+            console.log('✅ Background music started');
+        } catch (error) {
+            console.error('Error starting background music:', error);
+        }
+    }
+
+    /**
+     * Stop background music
+     */
+    stopBackgroundMusic() {
+        if (!this.backgroundMusic) {
+            return;
+        }
+
+        console.log('🔇 Stopping background music...');
+
+        try {
+            // Fade out
+            const now = this.audioContext.currentTime;
+            this.backgroundMusic.gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1);
+            
+            // Stop all sources after fade
+            setTimeout(() => {
+                if (this.backgroundMusic) {
+                    this.backgroundMusic.oscillators.forEach(osc => {
+                        try { osc.stop(); } catch (e) { /* already stopped */ }
+                    });
+                    try { this.backgroundMusic.noiseSource.stop(); } catch (e) { /* already stopped */ }
+                    try { this.backgroundMusic.lfo.stop(); } catch (e) { /* already stopped */ }
+                    this.backgroundMusic = null;
+                }
+            }, 1000);
+            
+            console.log('✅ Background music stopped');
+        } catch (error) {
+            console.error('Error stopping background music:', error);
+            this.backgroundMusic = null;
+        }
+    }
+
+    /**
+     * Toggle background music on/off
+     */
+    toggleBackgroundMusic() {
+        this.musicEnabled = !this.musicEnabled;
+        
+        if (this.musicEnabled) {
+            this.startBackgroundMusic();
+        } else {
+            this.stopBackgroundMusic();
+        }
+        
+        return this.musicEnabled;
+    }
+
+    /**
+     * Check if background music is playing
+     */
+    isMusicPlaying() {
+        return this.backgroundMusic !== null;
     }
 }
 

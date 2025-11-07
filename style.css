@@ -2008,4 +2008,119 @@ footer {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    z-index: 10001;
+    background: 
+        /* Dark horror background */
+        linear-gradient(180deg, rgba(30, 15, 15, 0.98) 0%, rgba(20, 10, 10, 0.98) 100%),
+        /* Blood splatter texture */
+        radial-gradient(ellipse at 20% 30%, rgba(100, 0, 0, 0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(100, 0, 0, 0.2) 0%, transparent 50%),
+        /* Rusty metal texture */
+        repeating-linear-gradient(
+            90deg,
+            rgba(40, 30, 20, 0.3) 0px,
+            rgba(50, 40, 30, 0.3) 2px,
+            rgba(30, 20, 10, 0.3) 4px
+        );
+    border: 2px solid rgba(150, 40, 40, 0.8);
+    border-radius: 4px;
+    min-width: 400px;
+    max-width: 600px;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.9),
+        inset 0 1px 0 rgba(150, 50, 50, 0.2),
+        0 0 40px rgba(150, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 2px solid rgba(150, 40, 40, 0.5);
+    background: 
+        linear-gradient(180deg, rgba(40, 20, 20, 0.5) 0%, transparent 100%),
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            rgba(150, 0, 0, 0.1) 1px,
+            transparent 2px
+        );
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #ff4444;
+    font-size: 24px;
+    font-weight: 700;
+    text-shadow: 
+        0 0 10px rgba(255, 68, 68, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.8);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.modal-body {
+    padding: 24px;
+    color: #d4d4d4;
+    line-height: 1.6;
+    font-size: 16px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.modal-body p {
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 2px solid rgba(150, 40, 40, 0.5);
+    display: flex;
+    justify-content: flex-end;
+    background: 
+        linear-gradient(180deg, transparent 0%, rgba(40, 20, 20, 0.5) 100%);
+}
+
+.modal-footer .btn {
+    min-width: 100px;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 } 

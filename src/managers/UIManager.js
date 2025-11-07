@@ -7,6 +7,18 @@ export class UIManager {
         this.gameManager.gameState.onStateChange((gameState) => {
             this.updateGameUI(gameState);
         });
+        
+        // Setup modal OK button click handler
+        this.elements.errorModalOkBtn.addEventListener('click', () => {
+            this.hideGameMessage();
+        });
+        
+        // Close modal when clicking overlay
+        this.elements.errorModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.errorModal || e.target.classList.contains('modal-overlay')) {
+                this.hideGameMessage();
+            }
+        });
     }
     
     /**
@@ -174,6 +186,11 @@ export class UIManager {
             // Blocks
             blockBanner: document.getElementById('blockBanner'),
             blockWindow: document.getElementById('blockWindow'),
+            
+            // Modal
+            errorModal: document.getElementById('errorModal'),
+            errorModalMessage: document.getElementById('errorModalMessage'),
+            errorModalOkBtn: document.getElementById('errorModalOkBtn'),
         };
     }
 
@@ -600,6 +617,27 @@ export class UIManager {
             parts.push(`Finalized: ${timing.finalized - timing.submitted}ms`);
         }
         return parts.join(' | ');
+    }
+
+    /**
+     * Show error/warning modal with a custom message
+     * @param {string} message - The error message to display
+     */
+    showGameMessage(message) {
+        console.log('🚨 Showing modal message:', message);
+        this.elements.errorModalMessage.textContent = message;
+        this.elements.errorModal.classList.remove('hidden');
+        
+        // Focus the OK button for accessibility
+        this.elements.errorModalOkBtn.focus();
+    }
+
+    /**
+     * Hide the error/warning modal
+     */
+    hideGameMessage() {
+        console.log('✅ Hiding modal message');
+        this.elements.errorModal.classList.add('hidden');
     }
 }
 

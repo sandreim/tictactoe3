@@ -108,7 +108,7 @@ export class ChainManager {
 
         const [chain, version] = await Promise.all([
             this.api.rpc.system.chain(),
-            this.api.rpc.system.version()
+            this.api.rpc.system.version(),
         ]);
 
         return {
@@ -125,10 +125,20 @@ export class ChainManager {
         this.onBlockCallback = callback;
 
         // Subscribe to new blocks (best blocks)
+        // detect forks by checking if the parent block hash is different from the previous block
+        let parentBlockHash = null;
         this.unsubscribeBlocks = await this.api.rpc.chain.subscribeNewHeads((header) => {
+            let fork = parentBlockHash !== null && header.parentHash.toHex() !== parentBlockHash;
+
+            parentBlockHash = header.hash.toHex();
+
+            if (fork) {
+                console.warn('⚠️ Possible chain revert detected');
+            }
+
             this.updateBlockInfo(header);
             if (callback) {
-                callback();
+                callback(fork);
             }
         });
 
