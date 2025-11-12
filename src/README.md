@@ -1,7 +1,5 @@
 # Modular Architecture
 
-This application has been refactored from a monolithic 2000+ line file into a clean, modular architecture.
-
 ## Structure
 
 ```
