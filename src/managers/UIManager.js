@@ -2,6 +2,7 @@ export class UIManager {
     constructor(gameManager) {
         this.gameManager = gameManager;
         this.elements = this.cacheElements();
+        this.previousBoard = Array(9).fill(null); // Track previous board state
         
         // Listen to game state changes and update ALL game UI automatically
         this.gameManager.gameState.onStateChange((gameState) => {
@@ -54,23 +55,107 @@ export class UIManager {
         const board = gameState.board;
         console.log('Updating board from state:', board);
         
+        let hasNewSymbol = false;
+        
         board.forEach((cell, index) => {
             const cellElement = document.querySelector(`[data-cell="${index}"]`);
             if (!cellElement) {
                 console.error(`Cell element not found for index ${index}`);
                 return;
             }
+            
+            // Check if this is a new symbol placement
+            const isNewSymbol = this.previousBoard[index] === null && cell !== null;
+            if (isNewSymbol) {
+                hasNewSymbol = true;
+            }
+            
             cellElement.textContent = '';
-            cellElement.classList.remove('taken', 'x', 'o');
+            cellElement.classList.remove('taken', 'x', 'o', 'blood-splash');
             
             if (cell === 'X') {
                 cellElement.textContent = 'X';
                 cellElement.classList.add('taken', 'x');
+                
+                // Add blood splash effect for new symbols
+                if (isNewSymbol) {
+                    cellElement.classList.add('blood-splash');
+                    // Remove the class after animation completes
+                    setTimeout(() => {
+                        cellElement.classList.remove('blood-splash');
+                    }, 2500); // Duration of all animations (1500ms heartbeat + 1000ms pulse)
+                }
             } else if (cell === 'O') {
                 cellElement.textContent = 'O';
                 cellElement.classList.add('taken', 'o');
+                
+                // Add blood splash effect for new symbols
+                if (isNewSymbol) {
+                    cellElement.classList.add('blood-splash');
+                    // Remove the class after animation completes
+                    setTimeout(() => {
+                        cellElement.classList.remove('blood-splash');
+                    }, 2500); // Duration of all animations (1500ms heartbeat + 1000ms pulse)
+                }
             }
         });
+        
+        // Check for winning combinations and highlight them
+        this.highlightWinningLine(board);
+        
+        // Shake the board if a new symbol was placed
+        if (hasNewSymbol) {
+            const gameBoard = this.elements.gameBoard;
+            gameBoard.classList.add('shake');
+            setTimeout(() => {
+                gameBoard.classList.remove('shake');
+            }, 250);
+        }
+        
+        // Update previous board state
+        this.previousBoard = [...board];
+    }
+    
+    /**
+     * Check for winning line and highlight it
+     */
+    highlightWinningLine(board) {
+        // Define all possible winning combinations (3x3 board)
+        const winningCombinations = [
+            [0, 1, 2], // Top row
+            [3, 4, 5], // Middle row
+            [6, 7, 8], // Bottom row
+            [0, 3, 6], // Left column
+            [1, 4, 7], // Middle column
+            [2, 5, 8], // Right column
+            [0, 4, 8], // Diagonal top-left to bottom-right
+            [2, 4, 6]  // Diagonal top-right to bottom-left
+        ];
+        
+        // Remove existing winner classes
+        document.querySelectorAll('.cell.winner').forEach(cell => {
+            cell.classList.remove('winner');
+        });
+        
+        // Check each winning combination
+        for (const combination of winningCombinations) {
+            const [a, b, c] = combination;
+            
+            // Check if all three positions have the same non-null symbol
+            if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                // Found a winning line! Highlight these cells
+                const cellA = document.querySelector(`[data-cell="${a}"]`);
+                const cellB = document.querySelector(`[data-cell="${b}"]`);
+                const cellC = document.querySelector(`[data-cell="${c}"]`);
+                
+                if (cellA) cellA.classList.add('winner');
+                if (cellB) cellB.classList.add('winner');
+                if (cellC) cellC.classList.add('winner');
+                
+                console.log(`🏆 Winning line found: ${board[a]} at positions [${a}, ${b}, ${c}]`);
+                break; // Only one winning line possible
+            }
+        }
     }
     
     /**

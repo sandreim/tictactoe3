@@ -85,9 +85,6 @@ export class App {
         
         // Sound toggle
         document.getElementById('toggleSoundBtn').addEventListener('click', () => this.handleToggleSound());
-        
-        // Music toggle
-        document.getElementById('toggleMusicBtn').addEventListener('click', () => this.handleToggleMusic());
     }
 
     async handleConnect() {
@@ -850,20 +847,5 @@ export class App {
         }
     }
 
-    handleToggleMusic() {
-        const isEnabled = this.soundManager.toggleBackgroundMusic();
-        const musicOnIcon = document.getElementById('musicOnIcon');
-        const musicOffIcon = document.getElementById('musicOffIcon');
-        
-        if (isEnabled) {
-            musicOnIcon.style.display = 'block';
-            musicOffIcon.style.display = 'none';
-            console.log('🎵 Background music enabled');
-        } else {
-            musicOnIcon.style.display = 'none';
-            musicOffIcon.style.display = 'block';
-            console.log('🎵 Background music disabled');
-        }
-    }
 }
 
